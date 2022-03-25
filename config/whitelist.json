@@ -1,0 +1,10 @@
+{
+  "http": [
+    "localhost",
+    "services.i2b2.org"
+  ],
+  "https": [
+    "localhost",
+    "services.i2b2.org"
+  ]
+}

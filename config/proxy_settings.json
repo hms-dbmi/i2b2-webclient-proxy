@@ -1,0 +1,8 @@
+{
+  "useCORS": true,
+  "httpsCert": "server.cert",
+  "httpsKey": "server.key",
+  "proxyUrl": "/~proxy",
+  "maxBodySize": 10000000,
+  "proxyToSelfSignedSSL": true
+}
