@@ -3,10 +3,10 @@
 ## 1) Specify Web Client Version to Use
 
  Within the `Dockerfile` file look for the following line and change the version number 
- (in this example "`2.0.0`") to the version number of the web client that you want to run.
+ (in this example "`v2.0.0`") to the version number of the web client that you want to run.
  
  ```
- RUN git clone --branch 2.0.0 https://github.com/hms-dbmi/i2b2v2-webclient.git webclient
+ RUN git clone --branch v2.0.0 https://github.com/hms-dbmi/i2b2v2-webclient.git webclient
  ```
  
  You can see a list of available version numbers at [https://github.com/hms-dbmi/i2b2v2-webclient/tags](https://github.com/hms-dbmi/i2b2v2-webclient/tags).
