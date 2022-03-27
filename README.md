@@ -12,6 +12,7 @@
  You can see a list of available version numbers at [https://github.com/hms-dbmi/i2b2v2-webclient/tags](https://github.com/hms-dbmi/i2b2v2-webclient/tags).
 
 ## 2) Setup i2b2 Configuration Files
+
  You can edit the `i2b2_config_*.json` files that are in the project's `config` subdirectory.  
  Changes to these files will override the default config files that will be downloaded with the i2b2v2 web client.
  
@@ -19,7 +20,8 @@
  The `i2b2_config_cells.json` file contains information on what i2b2 cells (ie components) are going to be loaded 
  and enabled into your i2b2v2 web client deployment. By default, the files given will use the public i2b2 server at `services.i2b2.org`.
 
-## 3) Configure the Proxy Server
+## 3) Configure the Web Client Proxy Service 
+
  Within the project's `config` subdirectory you will also find a `proxy_settings.json` file that configures operation of the i2b2 proxy service.
  It has the following options:
  
@@ -49,22 +51,23 @@ It has the following format:
   
   
 ## 3) Build the Docker Image
+
  In the root project folder run the command: 
  ```
  docker build -t i2b2-proxy .
  ```
 
 ## 4) Run the Image using Docker-Compose
+
  In the root project folder run the command:
  ```
  docker-compose -d up
  ```  
  You can run the command without the `-d` option if you wish to see logging displayed live as it is running.
  
-
 #
 
 ### Note about Docker mapping of configuration files
-> All files in the `/config` directory are volume-mapped into the running Docker image.
-> This enables you to change the configuration and/or HTTPS credentials without needing to rebuild the image for each change.
-> Although image rebuild is not needed you *will* need to restart the docker container for changes to be recognized. 
+> All files in the `/config` subdirectory are volume-mapped into the running Docker image.
+> This enables you to change the configuration and/or HTTPS credentials without needing to rebuild the Docker image for each change.
+> Although image rebuild is not needed you _will_ need to restart the docker container for changes to be recognized. 
