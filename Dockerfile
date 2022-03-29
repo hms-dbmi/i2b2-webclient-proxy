@@ -10,7 +10,7 @@ RUN npm install
 COPY . .
 
 # copy the latest i2b2v2 client
-RUN git clone --branch 2.0.0 https://github.com/hms-dbmi/i2b2v2-webclient.git webclient
+RUN git clone --branch v2.0.0 https://github.com/hms-dbmi/i2b2v2-webclient.git webclient
 
 # open ports for HTTP and HTTPS
 EXPOSE 80
