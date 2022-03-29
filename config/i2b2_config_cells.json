@@ -1,6 +1,7 @@
 [
-  { "code": "PM", "forceLoading": true },
-  { "code": "ONT"	},
-  { "code": "CRC"	},
-  { "code": "WORK"}
+    { "code": "PM", "forceLoading": true },
+    { "code": "ONT"     },
+    { "code": "CRC"     },
+    { "code": "LEGACYPLUGIN", "forceLoading": true},
+    { "code": "WORK"}
 ]
