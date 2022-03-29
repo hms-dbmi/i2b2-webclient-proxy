@@ -19,11 +19,11 @@
  The `i2b2_config_cells.json` file contains information on what i2b2 cells (ie components) are going to be loaded 
  and enabled into your i2b2v2 web client deployment. By default, the files given will use the public i2b2 server at `services.i2b2.org`.
 
- (The default configuration files already present in this repo will create a running instance without needing any changes.)
+ *The default configuration files already present in this repo will create a running instance without needing any changes.*
 
 ## 3) Configure the Web Client Proxy Service 
 
- (The default configuration given in the following fileswill create a running instance without needing any changes.)
+ *The default configuration given in the following files will create a running instance without needing any changes.*
 
  Within the project's `config` subdirectory you will also find a `proxy_settings.json` file that configures operation of the i2b2 proxy service.
  It has the following options:
