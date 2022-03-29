@@ -53,14 +53,14 @@ It has the following format:
 ```
   
   
-## 3) Build the Docker Image
+## 4) Build the Docker Image
 
  In the root project folder run the command: 
  ```
  docker build -t i2b2-proxy .
  ```
 
-## 4) Run the Image using Docker-Compose
+## 5) Run the Image using Docker-Compose
 
  In the root project folder run the command:
  ```
