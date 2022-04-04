@@ -1,6 +1,6 @@
 # Deploy *i2b2-webclient-proxy* with i2b2v2 Web Client
 
-## 1) Specify Web Client Version to Use
+## 1) Specify Web Client Version to Use (Optional)
 
  Within the `Dockerfile` file look for the following line and change the version number 
  (in this example "`v2.0.0`") to the version number of the web client that you want to run.
@@ -11,7 +11,7 @@
  
  You can see a list of available version numbers at [https://github.com/hms-dbmi/i2b2v2-webclient/tags](https://github.com/hms-dbmi/i2b2v2-webclient/tags).
 
-## 2) Setup i2b2 Configuration Files
+## 2) Setup i2b2 Configuration Files (Optional)
  You can edit the `i2b2_config_*.json` files that are in the project's `config` subdirectory.  
  Changes to these files will override the default config files that will be downloaded with the i2b2v2 web client.
  
@@ -21,7 +21,7 @@
 
  *The default configuration files already present in this repo will create a running instance without needing any changes.*
 
-## 3) Configure the Web Client Proxy Service 
+## 3) Configure the Web Client Proxy Service (Optional)
 
  *The default configuration given in the following files will create a running instance without needing any changes.*
 
