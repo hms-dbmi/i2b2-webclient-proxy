@@ -64,7 +64,7 @@ It has the following format:
 
  In the root project folder run the command:
  ```
- docker-compose -d up
+ docker-compose up -d
  ```  
  You can run the command without the `-d` option if you wish to see logging displayed live as it is running.
  
