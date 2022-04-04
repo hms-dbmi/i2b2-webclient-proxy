@@ -68,6 +68,9 @@ It has the following format:
  ```  
  You can run the command without the `-d` option if you wish to see logging displayed live as it is running.
  
+## 6) Go to i2b2 webclient at 
+ https://localhost:446/
+
 #
 
 ### Note about Docker mapping of configuration files
