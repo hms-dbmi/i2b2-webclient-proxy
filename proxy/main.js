@@ -175,13 +175,19 @@ httpsProxy.use(function(req, res, next) {
                 }
                 logline.push(proxy_to.path + " ");
 
-                // TODO: Implement whitelist checking here
-                let hostUrl =  proxy_to.protocol + proxy_to.hostname;
+                //Check whitelist
+                let hostUrl =  opts.protocol + opts.hostname;
+                if (opts.port) {
+                    hostUrl = hostUrl + ":" + opts.port;
+                }
+
                 let allowedHostUrls  = [];
-                let protocol = proxy_to.protocol;
                 if(whitelist && Object.keys(whitelist).length > 0)
                 {
-                    whitelist["http"].forEach(element => allowedHostUrls.push(protocol + element));
+                    whitelist["http"].forEach(element => {
+                            allowedHostUrls.push(opts.protocol + element)
+                        logline.push("element " + element);
+                    });
 
                     if(!allowedHostUrls.includes(hostUrl)) {
                         logline.push("\n[CODE ERROR] ");
