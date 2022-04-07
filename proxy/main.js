@@ -20,6 +20,8 @@ const cryptoKeyDir = path.join(configDir, 'crypto-keys');
 
 // read the configuration from "/config/proxy_settings.json"
 let data = JSON.parse(fs.readFileSync(path.join(configDir, "proxy_settings.json")));
+let whitelist = JSON.parse(fs.readFileSync(path.join(configDir, "whitelist.json")));
+
 // prefix the location of the "crypto-keys" directory to the cert/key filenames given
 data.httpsCert = path.join(cryptoKeyDir, data.httpsCert);
 data.httpsKey = path.join(cryptoKeyDir, data.httpsKey);
@@ -141,6 +143,7 @@ httpsProxy.use(function(req, res, next) {
                 let usrname = xpath.select("//security/username/text()", xml)[0].toString();
                 let proxy_to = xpath.select("//proxy/redirect_url/text()", xml)[0].toString();
                 // forward the request to the redirect URL
+                //proxy_to = new URL(proxy_to);
                 proxy_to = url.parse(proxy_to);
                 _.forEach(req.headers, (value, key) => {
                     headers[key] = value;
@@ -173,7 +176,21 @@ httpsProxy.use(function(req, res, next) {
                 logline.push(proxy_to.path + " ");
 
                 // TODO: Implement whitelist checking here
-                // proxy_to.protocol + proxy_to.hostname + proxy_to.port
+                let hostUrl =  proxy_to.protocol + proxy_to.hostname;
+                let allowedHostUrls  = [];
+                let protocol = proxy_to.protocol;
+                if(whitelist && Object.keys(whitelist).length > 0)
+                {
+                    whitelist["http"].forEach(element => allowedHostUrls.push(protocol + element));
+
+                    if(!allowedHostUrls.includes(hostUrl)) {
+                        logline.push("\n[CODE ERROR] ");
+                        logline.push("Host is not whitelisted: " + hostUrl);
+                        console.log(logline.join(''));
+                        res.end("Host is not whitelisted: " + hostUrl);
+                        return;
+                    }
+                }
 
                 let i2b2_result = [];
                 const proxy_reqest_hdlr  = function(proxy_res) {
