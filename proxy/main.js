@@ -184,10 +184,7 @@ httpsProxy.use(function(req, res, next) {
                 let allowedHostUrls  = [];
                 if(whitelist && Object.keys(whitelist).length > 0)
                 {
-                    whitelist["http"].forEach(element => {
-                            allowedHostUrls.push(opts.protocol + element)
-                        logline.push("element " + element);
-                    });
+                    whitelist["http"].forEach(element => allowedHostUrls.push(opts.protocol + element));
 
                     if(!allowedHostUrls.includes(hostUrl)) {
                         logline.push("\n[CODE ERROR] ");
