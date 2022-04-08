@@ -4,7 +4,6 @@ const express = require('express');
 const cors = require('cors');
 const https = require('https');
 const http = require('http');
-const url = require('url');
 const fs = require('fs');
 const path = require('path');
 const dom = require('xmldom').DOMParser;
@@ -143,9 +142,8 @@ httpsProxy.use(function(req, res, next) {
                 let usrname = xpath.select("//security/username/text()", xml)[0].toString();
                 let proxy_to = xpath.select("//proxy/redirect_url/text()", xml)[0].toString();
                 // forward the request to the redirect URL
-                //proxy_to = new URL(proxy_to);
-                proxy_to = url.parse(proxy_to);
-                _.forEach(req.headers, (value, key) => {
+                proxy_to = new URL(proxy_to);
+                 _.forEach(req.headers, (value, key) => {
                     headers[key] = value;
                 });
                 headers["Content-Type"] = 'text/xml';
@@ -161,19 +159,19 @@ httpsProxy.use(function(req, res, next) {
                     protocol: proxy_to.protocol,
                     hostname: proxy_to.hostname,
                     port: proxy_to.port,
-                    path: proxy_to.path,
+                    path: proxy_to.pathname,
                     method: req.method,
                     headers: headers
                 };
                 // logging output
                 logline.push("[" + domain + "/" + usrname + "]--> ");
                 logline.push(proxy_to.protocol + "//" + proxy_to.hostname);
-                if (opts['port'] === null) {
+                if (opts['port'] === '') {
                     delete opts['port'];
                 } else {
                     logline.push(":" + opts['port']);
                 }
-                logline.push(proxy_to.path + " ");
+                logline.push(proxy_to.pathname + " ");
 
                 //Check whitelist
                 let hostUrl =  opts.protocol + opts.hostname;
