@@ -185,10 +185,11 @@ httpsProxy.use(function(req, res, next) {
                     whitelist["http"].forEach(element => allowedHostUrls.push(opts.protocol + element));
 
                     if(!allowedHostUrls.includes(hostUrl)) {
+                        let whitelistErr = "Host is not whitelisted: " + hostUrl;
                         logline.push("\n[CODE ERROR] ");
-                        logline.push("Host is not whitelisted: " + hostUrl);
+                        logline.push(whitelistErr);
                         console.log(logline.join(''));
-                        res.end("Host is not whitelisted: " + hostUrl);
+                        res.end(whitelistErr);
                         return;
                     }
                 }
