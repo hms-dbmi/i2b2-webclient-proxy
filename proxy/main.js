@@ -9,7 +9,6 @@ const path = require('path');
 const dom = require('xmldom').DOMParser;
 const xpath = require('xpath');
 
-
 // configuration
 // ======================================================== //
 const baseDir = __dirname.split(path.sep).slice(0,-1).join(path.sep);
@@ -35,7 +34,7 @@ if (proxyConfiguration.useCORS) httpRedirect.use(cors());
 httpRedirect.get('*', functDoRedirect);
 httpRedirect.post('*', functDoRedirect);
 const httpServer = http.createServer(httpRedirect);
-httpServer.listen(80, () => { console.log('HTTP Redirect Service running on port 80'); });
+httpServer.listen(process.env.REDIRECT_PORT, () => { console.log('HTTP Redirect Service running on port ' + process.env.REDIRECT_PORT); });
 // ======================================================== //
 
 
@@ -273,8 +272,8 @@ const httpsServer = https.createServer({
 
 // start proxy
 // ======================================================== //
-httpsServer.listen(443, () => {
-    console.log('HTTPS Proxy Server running on port 443');
+httpsServer.listen(process.env.PROXY_PORT, () => {
+    console.log('HTTPS Proxy Server running on port11 ' + process.env.PROXY_PORT);
 });
 
 console.log(">>>> STARTED " + (new Date()).toISOString() + " <<<<");
