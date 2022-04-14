@@ -273,7 +273,7 @@ const httpsServer = https.createServer({
 // start proxy
 // ======================================================== //
 httpsServer.listen(process.env.PROXY_PORT, () => {
-    console.log('HTTPS Proxy Server running on port11 ' + process.env.PROXY_PORT);
+    console.log('HTTPS Proxy Server running on port ' + process.env.PROXY_PORT);
 });
 
 console.log(">>>> STARTED " + (new Date()).toISOString() + " <<<<");
