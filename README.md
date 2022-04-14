@@ -51,7 +51,10 @@ It has the following format:
   ]
 }
 ```
-  
+### Configure the ports for the redirect and proxy servers
+
+The port numbers used for the redirect and proxy servers can be modified in the .env file 
+
   
 ## 4) Build the Docker Image
 
