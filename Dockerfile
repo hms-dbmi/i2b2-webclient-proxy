@@ -16,6 +16,9 @@ RUN git clone --branch v2.0.0 https://github.com/hms-dbmi/i2b2v2-webclient.git w
 EXPOSE 80
 EXPOSE 443
 
+ENV REDIRECT_PORT=80
+ENV PROXY_PORT=443
+
 # start the proxy
 WORKDIR ..
 CMD ["node", "/usr/src/i2b2-proxy/proxy/main.js"]
