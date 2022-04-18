@@ -50,8 +50,9 @@ if (proxyConfiguration.useCORS) httpsProxy.use(cors());
 funcConfigFileReader = function(fileList, funcFound, funcNotFound) {
     let found = false;
     let data = "";
+    let file = "";
     while (fileList.length) {
-        let file = fileList.shift();
+        file = fileList.shift();
         try {
             data = fs.readFileSync(file);
             found = true;
