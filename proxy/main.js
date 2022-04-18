@@ -174,6 +174,8 @@ httpsProxy.use(function(req, res, next) {
 
                 //Check whitelist
                 let hostUrl =  opts.protocol + opts.hostname;
+                hostUrl = hostUrl.toUpperCase();
+
                 if (opts.port) {
                     hostUrl = hostUrl + ":" + opts.port;
                 }
@@ -181,7 +183,8 @@ httpsProxy.use(function(req, res, next) {
                 let allowedHostUrls  = [];
                 if(whitelist && Object.keys(whitelist).length > 0)
                 {
-                    whitelist["http"].forEach(element => allowedHostUrls.push(opts.protocol + element));
+                    let protocol = opts.protocol.replace(/:$/, '');
+                    whitelist[protocol].forEach(element => allowedHostUrls.push((opts.protocol + element).toUpperCase()));
 
                     if(!allowedHostUrls.includes(hostUrl)) {
                         let whitelistErr = "Host is not whitelisted: " + hostUrl;
