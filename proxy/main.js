@@ -57,6 +57,16 @@ funcConfigFileReader = function(fileList, funcFound, funcNotFound) {
             break;
         } catch (e) {}
     }
+    // log where the file is loaded from (ease debugging issues)
+    let loadingFrom;
+    if (file.startsWith(configDir)) {
+        loadingFrom = "outside of docker, the configuration directory of the proxy server repo.";
+    } else {
+        loadingFrom = "within docker, the hosting directory of the webclient.";
+    }
+
+    console.log('"' + path.basename(file) + '" was loaded from ' + loadingFrom);
+
     if (found) {
         funcFound(data);
     } else {
