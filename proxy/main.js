@@ -34,7 +34,8 @@ if (proxyConfiguration.useCORS) httpRedirect.use(cors());
 httpRedirect.get('*', functDoRedirect);
 httpRedirect.post('*', functDoRedirect);
 const httpServer = http.createServer(httpRedirect);
-httpServer.listen(process.env.REDIRECT_PORT, () => { console.log('HTTP Redirect Service running on port ' + process.env.REDIRECT_PORT); });
+let redirPort = process.env.REDIRECT_PORT ? process.env.REDIRECT_PORT : 80;
+httpServer.listen(redirPort, () => { console.log('HTTP Redirect Service running on port ' + redirPort); });
 // ======================================================== //
 
 
@@ -285,8 +286,9 @@ const httpsServer = https.createServer({
 
 // start proxy
 // ======================================================== //
-httpsServer.listen(process.env.PROXY_PORT, () => {
-    console.log('HTTPS Proxy Server running on port ' + process.env.PROXY_PORT);
+let proxyPort = process.env.PROXY_PORT ? process.env.PROXY_PORT : 443;
+httpsServer.listen(proxyPort, () => {
+    console.log('HTTPS Proxy Server running on port ' + proxyPort);
 });
 
 console.log(">>>> STARTED " + (new Date()).toISOString() + " <<<<");
