@@ -9,8 +9,9 @@ RUN npm install
 # copy over the proxy files
 COPY . .
 
+ARG I2B2_VERSION
 # copy the latest i2b2v2 client
-RUN git clone --branch v2.0.0 https://github.com/hms-dbmi/i2b2v2-webclient.git webclient
+RUN git clone --branch $I2B2_VERSION https://github.com/hms-dbmi/i2b2v2-webclient.git webclient
 
 # open ports for HTTP and HTTPS
 EXPOSE 80

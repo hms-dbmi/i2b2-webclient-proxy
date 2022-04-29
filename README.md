@@ -60,7 +60,7 @@ The port numbers used for the redirect and proxy servers can be modified in the 
 
  In the root project folder run the command: 
  ```
- docker build -t i2b2-proxy .
+ docker build --build-arg I2B2_VERSION=v2.0.0 -t i2b2-proxy .
  ```
 
 ## 5) Run the Image using Docker-Compose
