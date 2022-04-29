@@ -72,6 +72,9 @@ https://localhost:443/
 
 #
 
+###NOTES About Docker version
+These instructions were tested with Docker version 20.10.0
+
 ### Note about Docker mapping of configuration files
 > All files in the `/config` subdirectory are volume-mapped into the running Docker image.
 > This enables you to change the configuration and/or HTTPS credentials without needing to rebuild the Docker image for each change.
