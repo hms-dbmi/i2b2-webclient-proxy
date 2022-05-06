@@ -110,6 +110,38 @@ httpsProxy.get('/i2b2_config_domains.json', (req, res) => {
     );
 });
 
+// -------------------------------------------------------- //
+httpsProxy.get('/plugins/plugins.json', (req, res) => {
+
+    let plugins = [];
+    function walkDir(dir) {
+        let directoryListing = fs.readdirSync(dir);
+        if (directoryListing.includes('plugin.json')) {
+            plugins.push(dir);
+            return;
+        }
+        for (let i in directoryListing) {
+            let dirPath = path.join(dir, directoryListing[i]);
+            if (fs.statSync(dirPath).isDirectory()) walkDir(dirPath);
+        }
+    }
+
+    let pluginsDir = path.join(hostingDir, 'plugins');
+    walkDir(pluginsDir);
+    plugins.forEach((d, i) => {
+        plugins[i] = d.replace(pluginsDir + path.sep, '').replaceAll(path.sep, '.');
+    });
+    res.send(JSON.stringify(plugins));
+
+});
+
+
+
+
+
+
+
+
 // serve the static files
 // -------------------------------------------------------- //
 httpsProxy.use(express.static(hostingDir));
