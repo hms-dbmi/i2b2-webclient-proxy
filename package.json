@@ -2,9 +2,11 @@
   "name": "i2b2-webclient-proxy",
   "version": "0.0.1",
   "dependencies": {
+    "body-parser": "^1.20.0",
     "cors": "^2.8.5",
     "express": "^4.17.3",
     "lodash": "^4.17.21",
+    "samlify": "^2.8.4",
     "xmldom": "^0.6.0",
     "xpath": "^0.0.32"
   }

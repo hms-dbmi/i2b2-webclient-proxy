@@ -45,6 +45,8 @@ httpServer.listen(redirPort, () => { console.log('HTTP Redirect Service running 
 const httpsProxy = express();
 if (proxyConfiguration.useCORS) httpsProxy.use(cors());
 
+
+
 // handle the configuration files
 // -------------------------------------------------------- //
 funcConfigFileReader = function(fileList, funcFound, funcNotFound) {
@@ -136,8 +138,8 @@ httpsProxy.get('/plugins/plugins.json', (req, res) => {
 });
 
 
-
-
+// use SAML if configured
+if (proxyConfiguration.useSAML) httpsProxy.use("/saml", require(path.join(baseDir, "proxy", "saml.js")));
 
 
 
