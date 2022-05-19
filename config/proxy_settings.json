@@ -5,5 +5,12 @@
   "proxyUrl": "/~proxy",
   "maxBodySize": 10000000,
   "proxyToSelfSignedSSL": true,
-  "useSAML": true
+  "useSAML": true,
+  "i2b2SessionRequest": {
+    "url": "https://localhost/StartSession.php",
+    "timeout": 5000,
+    "data": {
+      "secret": "MY-SHARED-SECRET"
+    }
+  }
 }

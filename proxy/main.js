@@ -23,8 +23,7 @@ let whitelist = JSON.parse(fs.readFileSync(path.join(configDir, "whitelist.json"
 // prefix the location of the "crypto-keys" directory to the cert/key filenames given
 data.httpsCert = path.join(cryptoKeyDir, data.httpsCert);
 data.httpsKey = path.join(cryptoKeyDir, data.httpsKey);
-const proxyConfiguration = data;
-
+global.proxyConfiguration = data; //<=== accessable in modules too
 
 // HTTP listener that redirects to HTTPS
 // ======================================================== //
