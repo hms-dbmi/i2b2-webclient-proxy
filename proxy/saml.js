@@ -3,102 +3,146 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const router = express.Router();
 const saml = require('samlify');
-const ServiceProvider = saml.ServiceProvider;
-const IdentityProvider = saml.IdentityProvider;
+const axios = require('axios');
 const fs = require('fs');
+
+// caching of SP and IdP objects
+const idpList = {};
+// load our identity provider module locations
+// ============================================
+fs.readdirSync("config/saml/").forEach((file)=>{
+    let parts = file.toLowerCase().split(".");
+    if ((parts.length > 1 ? parts[1] === "js" : false)) {
+        idpList[parts[0]] = { module: "../config/saml/" + parts[0] };
+    }
+});
+
+// loads the service SP and IdP definitions
+const func_LoadServiceDef = (service, req) => {
+    if (idpList[service] === undefined) return false;
+    if (idpList[service].module === undefined) return true;
+    const serviceDef = require(idpList[service].module);
+    delete idpList[service].module;
+    idpList[service].sp = serviceDef.sp(req);
+    idpList[service].idp = serviceDef.idp(req);
+    return true;
+};
 
 // we need to setup a schema validator for this to work
 // TODO: Change this to something else?
 saml.setSchemaValidator({
     validate: (response) => {
-        console.dir(response);
         /* implment your own or always returns a resolved promise to skip */
         return Promise.resolve('skipped');
     }
 });
 
 
-
-// load our service provider definition
-// ============================================
-let sp;
-try {
-    const spFile = "config/saml/_self.xml";
-    if (fs.existsSync(spFile)) {
-        sp = ServiceProvider({
-            metadata: fs.readFileSync(spFile)
-        });
-    } else {
-        console.error("MISSING SERVICE PROVIDER FILE: ./config/saml/_self.xml does not exist");
-        process.exit();
-    }
-} catch(err) {
-    console.error("ERROR CHECKING SERVICE PROVIDER FILE: ./config/saml/_self.xml");
-    process.exit();
-}
-
-
-// load our identity provider definition(s)
-// ============================================
-const idpList = {};
-fs.readdirSync("config/saml/").forEach((file)=>{
-    let parts = file.toLowerCase().split(".");
-    if (parts[0] !== "_self" && (parts.length > 1 ? parts[1] === "xml" : false)) {
-        idpList[parts[0]] = IdentityProvider({
-            metadata: fs.readFileSync("config/saml/" + file),
-            isAssertionEncrypted: true,
-            messageSigningOrder: 'encrypt-then-sign',
-            wantLogoutRequestSigned: true
-        });
-    }
-});
-
-
 // Release the metadata publicly
 // ============================================
-router.get('/metadata', (req, res) => res.header('Content-Type','text/xml').send(sp.getMetadata()));
+router.get('/metadata/:service', (req, res) => {
+    const service = req.params.service.toLowerCase();
+    if (!func_LoadServiceDef(service, req)) {
+        res.sendStatus(404);
+        return;
+    }
+    res.header('Content-Type','text/xml').send(idpList[service].sp.getMetadata());
+});
+
 router.get('/idp_list.json', (req, res) => res.json(Object.keys(idpList)));
 
 
 // Access URL for implementing SP-init SSO
 // ============================================
-router.get('/redirect/:IdP', (req, res) => {
-    const requestedIdP = req.params.IdP.toLowerCase();
-    if (idpList[requestedIdP] === undefined) {
-        // The requested IdP does not exist
+router.get('/redirect/:service', (req, res) => {
+    let client_ip = req.headers['x-forwarded-for'] ||
+        req.connection.remoteAddress ||
+        req.socket.remoteAddress ||
+        req.connection.socket.remoteAddress;
+    let logline = [];
+    logline.push((new Date()).toISOString() + " | ");
+    logline.push(client_ip + " --[SAML Redirect]--> ");
+    const service = req.params.service.toLowerCase();
+    logline.push('(' + service + ')');
+    if (!func_LoadServiceDef(service, req)) {
+        logline.push(" NOT_CONFIGURED! [ERROR]");
+        console.log(logline.join(''));
         res.sendStatus(404);
-    } else {
-        const { id, context } = sp.createLoginRequest(idpList[requestedIdP], 'redirect');
-        return res.redirect(context);
+        return;
     }
+    const { id, context } = idpList[service].sp.createLoginRequest(idpList[service].idp, 'redirect');
+    logline.push(` ${context.split('?')[0]} [OK]`);
+    console.log(logline.join(''));
+    return res.redirect(context);
 });
 
 
 // If your application only supports IdP-initiated SSO, just make this route is enough
 // This is the assertion service url where SAML Response is sent to
-router.post('/acs', bodyParser.urlencoded({ extended: false }), (req, res) => {
-//router.post('/acs', (req, res) => {
-    // decode SAML authentication document
-//    const SamlDoc = Buffer.from(req.body.SAMLResponse, 'base64').toString();
-    // loop through all known IdPs and search for its "issuer" URL in the document
-    for (let idpCode in idpList) {
-//        if (SamlDoc.includes(idpList[idpCode].entityMeta.meta.entityID)) {
-            sp.parseLoginResponse(idpList[idpCode], 'post', req)
-                .then(parseResult => {
-                    // TODO: Do side-channel request to start session with PM cell and return Session ID
-                    return "THIS-IS-A-TEST-SESSION-ID";
-                }).then(sessionId => {
-                    let htmlResponse = `<html><body>
-                        <script type="text/javascript">window.opener.i2b2.PM.ctrlr.SamlLogin("username", "$[{sessionId}");
-                        </body></html>`;
-                    res.send(htmlResponse);
-                }).catch((e) => {
-                debugger;
-                console.log(e);
-            });
-            break;
-        //}
+router.post('/acs/:service', bodyParser.urlencoded({ extended: false }), (req, res) => {
+    let userID;
+    let client_ip = req.headers['x-forwarded-for'] ||
+        req.connection.remoteAddress ||
+        req.socket.remoteAddress ||
+        req.connection.socket.remoteAddress;
+    let logline = [];
+    logline.push((new Date()).toISOString() + " | ");
+    logline.push(client_ip + " --[SAML ACS]--> ");
+    const service = req.params.service.toLowerCase();
+    logline.push('(' + service + ')');
+    if (!func_LoadServiceDef(service, req)) {
+        logline.push(" NOT_CONFIGURED! [ERROR]");
+        console.log(logline.join(''));
+        res.sendStatus(404);
+        return;
     }
+    // decode SAML authentication document
+    idpList[service].sp.parseLoginResponse(idpList[service].idp, 'post', req)
+    .then(parseResult => {
+        // TODO: Do side-channel request to start session with PM cell and return Session ID
+        userID = parseResult.extract.nameID;
+        logline.push(" START_SESSION FOR " + userID);
+        return new Promise((resolve, reject) => {
+            // get the user identifier to be logged in
+            const requestData = Object.assign({method: "post", maxRedirects: 0}, proxyConfiguration.i2b2SessionRequest);
+            if (requestData.data === undefined) requestData.data = {};
+            requestData.data.username = userID;
+
+            // create a session key via protected API request
+            logline.push(" VIA " + requestData.url);
+            // handle self-signed SSL
+            if (proxyConfiguration.proxyToSelfSignedSSL) {
+                // Insanely insecure hack to accept self-signed SSL Certificates (if configured)
+                process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+            } else {
+                process.env.NODE_TLS_REJECT_UNAUTHORIZED = "1";
+            }
+            // make request
+            axios.request(requestData).then((response) => {
+                if (response.status !== 200) {
+                    logline.push(" Response=" + response.status + " [ERROR]");
+                    console.log(logline.join(''));
+                    reject('Server Failed to Generate SessionID');
+                } else {
+                    logline.push(" [OK]");
+                    resolve(response.data.session);
+                }
+            }).catch((error)=>{
+                logline.push(" [HTTP FAILED]");
+                reject(error.message);
+            });
+        });
+    }).then(sessionId => {
+        let htmlResponse = `<html><body>
+        <script type="text/javascript">window.opener.i2b2.PM.ctrlr.SamlLogin("${userID}", "${sessionId}");</script>
+        </body></html>`;
+        console.log(logline.join(''));
+        res.send(htmlResponse);
+    }).catch((e) => {
+        logline.push(" [PARSING FAILED] [ERROR] " + e);
+        console.log(logline.join(''));
+        res.sendStatus(401);
+    });
 });
 
 module.exports = router;

@@ -111,6 +111,12 @@ httpsProxy.get('/i2b2_config_domains.json', (req, res) => {
     );
 });
 
+// this is an example service
+// -------------------------------------------------------- //
+httpsProxy.post('/StartSession.php', (req, res) => {
+    res.send(JSON.stringify({session: "MY-SESSION-ID"}));
+});
+
 // -------------------------------------------------------- //
 httpsProxy.get('/plugins/plugins.json', (req, res) => {
 
