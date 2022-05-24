@@ -5,12 +5,13 @@ const router = express.Router();
 const saml = require('samlify');
 const axios = require('axios');
 const fs = require('fs');
+const path = require('path');
 
 // caching of SP and IdP objects
 const idpList = {};
 // load our identity provider module locations
 // ============================================
-fs.readdirSync("config/saml/").forEach((file)=>{
+fs.readdirSync(path.join(path.dirname(__dirname), 'config','saml')).forEach((file)=>{
     let parts = file.toLowerCase().split(".");
     if ((parts.length > 1 ? parts[1] === "js" : false)) {
         idpList[parts[0]] = { module: "../config/saml/" + parts[0] };
