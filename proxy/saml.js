@@ -108,6 +108,7 @@ router.post('/acs/:service', bodyParser.urlencoded({ extended: false }), (req, r
             const requestData = Object.assign({method: "post", maxRedirects: 0}, proxyConfiguration.i2b2SessionRequest);
             if (requestData.data === undefined) requestData.data = {};
             requestData.data.username = userID;
+            requestData.data.clientIP = client_ip;
 
             // create a session key via protected API request
             logline.push(" VIA " + requestData.url);
