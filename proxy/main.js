@@ -206,14 +206,17 @@ httpsProxy.use(function(req, res, next) {
                          headers[key] = value;
                      } else {
                          // log header injection
-                         logline.push(' CLIENT ATTEMPTED TO INJECT FORBIDDEN HEADER "' + key + '" = "' + value + '"');
-                         console.log(logline.join(''));
+                         logline.push('\n\tCLIENT ATTEMPTED TO INJECT FORBIDDEN HEADER "' + key + '" = "' + value + '"');
                          // end the connection
-                         res.sendStatus(403).end();
                          abort = true;
                      }
                 });
-                if (abort) return;
+                if (abort) {
+                    logline.push('\nTerminating connection with 403\n');
+                    console.log(logline.join(''));
+                    res.sendStatus(403).end();
+                    return;
+                }
                 headers["Content-Type"] = 'text/xml';
                 headers["forwarded"] = `for=${client_ip}`;
                 headers["x-forwarded-for"] = client_ip;
