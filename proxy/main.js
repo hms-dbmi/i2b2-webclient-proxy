@@ -9,6 +9,13 @@ const path = require('path');
 const dom = require('xmldom').DOMParser;
 const xpath = require('xpath');
 
+// === Do not proxy these headers from the browser to the i2b2 server ===
+// Prevents security issues with SAML Authentication
+const ignoreHeaders = [
+    "X-eduPersonPrincipalName",
+    "X-Shib-Session-ID"
+];
+
 // configuration
 // ======================================================== //
 const baseDir = __dirname.split(path.sep).slice(0,-1).join(path.sep);
@@ -193,9 +200,20 @@ httpsProxy.use(function(req, res, next) {
                 let proxy_to = xpath.select("//proxy/redirect_url/text()", xml)[0].toString();
                 // forward the request to the redirect URL
                 proxy_to = new URL(proxy_to);
+                let abort = false;
                  _.forEach(req.headers, (value, key) => {
-                    headers[key] = value;
+                     if (ignoreHeaders.find(badHeader => key.toLowerCase() === badHeader.toLowerCase() ) === undefined) {
+                         headers[key] = value;
+                     } else {
+                         // log header injection
+                         logline.push(' CLIENT ATTEMPTED TO INJECT FORBIDDEN HEADER "' + key + '" = "' + value + '"');
+                         console.log(logline.join(''));
+                         // end the connection
+                         res.sendStatus(403).end();
+                         abort = true;
+                     }
                 });
+                if (abort) return;
                 headers["Content-Type"] = 'text/xml';
                 headers["forwarded"] = `for=${client_ip}`;
                 headers["x-forwarded-for"] = client_ip;
