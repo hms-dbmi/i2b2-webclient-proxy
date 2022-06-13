@@ -18,10 +18,10 @@ const ignoreHeaders = [
 
 // configuration
 // ======================================================== //
-const baseDir = __dirname.split(path.sep).slice(0,-1).join(path.sep);
-const hostingDir = path.join(baseDir, 'webclient');
-const configDir = path.join(baseDir, 'config');
-const cryptoKeyDir = path.join(configDir, 'crypto-keys');
+global.baseDir = __dirname.split(path.sep).slice(0,-1).join(path.sep);
+global.hostingDir = path.join(baseDir, 'webclient');
+global.configDir = path.join(baseDir, 'config');
+global.cryptoKeyDir = path.join(configDir, 'crypto-keys');
 
 // read the configuration from "/config/proxy_settings.json"
 let data = JSON.parse(fs.readFileSync(path.join(configDir, "proxy_settings.json")));
@@ -126,7 +126,6 @@ httpsProxy.post('/StartSession.php', (req, res) => {
 
 // -------------------------------------------------------- //
 httpsProxy.get('/plugins/plugins.json', (req, res) => {
-
     let plugins = [];
     function walkDir(dir) {
         let directoryListing = fs.readdirSync(dir);
@@ -149,10 +148,13 @@ httpsProxy.get('/plugins/plugins.json', (req, res) => {
 
 });
 
-
 // use SAML if configured
 if (proxyConfiguration.useSAML) httpsProxy.use("/saml", require(path.join(baseDir, "proxy", "saml.js")));
 
+// use GitManager if configured
+try {
+    if (global.proxyConfiguration.gitManager.active) httpsProxy.use(global.proxyConfiguration.gitManager.managerUrl, require(path.join(baseDir, "proxy", "git-manager.js")));
+} catch(e) {}
 
 
 
