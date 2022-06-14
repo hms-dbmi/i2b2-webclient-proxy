@@ -345,6 +345,7 @@ httpsProxy.use(function(req, res, next) {
 const httpsServer = https.createServer({
     key: fs.readFileSync(proxyConfiguration.httpsKey),
     cert: fs.readFileSync(proxyConfiguration.httpsCert),
+    passphrase: proxyConfiguration.httpsPassphrase
 }, httpsProxy);
 
 // start proxy
