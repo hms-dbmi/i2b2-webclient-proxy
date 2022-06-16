@@ -18,15 +18,17 @@ if (proxyConfiguration.gitManager.repo !== undefined && proxyConfiguration.gitMa
 
         if (!func_checkPassword(req.headers.authorization, res)) return false;
 
-        // switch(req.params.type) {
-        //     case "tag":
-                git.checkout(req.params.id, (results) => {
-                    res.sendStatus(200);
+        // this is probably overkill but...
+        // now RESET -> CHECKOUT -> FETCH -> PULL
+        git.reset('hard', () => {
+            git.checkout(req.params.id, () => {
+                git.fetch(['--tags', '--force'], () => {
+                    git.pull(['--force'], () => {
+                        res.sendStatus(200);
+                    });
                 });
-        //         break;
-        //     default:
-        //         res.sendStatus(404);
-        // }
+            });
+        });
     });
 
     router.get('/options', (req, res) => {
