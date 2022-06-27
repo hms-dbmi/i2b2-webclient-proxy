@@ -105,7 +105,7 @@ router.post('/acs/:service', bodyParser.urlencoded({ extended: false }), (req, r
         logline.push(" START_SESSION FOR " + userID);
         return new Promise((resolve, reject) => {
             // get the user identifier to be logged in
-            const requestData = Object.assign({method: "post", maxRedirects: 0}, proxyConfiguration.i2b2SessionRequest);
+            const requestData = Object.assign({method: "post", maxRedirects: 0}, systemConfiguration.i2b2SessionRequest);
             if (requestData.data === undefined) requestData.data = {};
             requestData.data.username = userID;
             requestData.data.clientIP = client_ip;
@@ -113,7 +113,7 @@ router.post('/acs/:service', bodyParser.urlencoded({ extended: false }), (req, r
             // create a session key via protected API request
             logline.push(" VIA " + requestData.url);
             // handle self-signed SSL
-            if (proxyConfiguration.proxyToSelfSignedSSL) {
+            if (systemConfiguration.proxyToSelfSignedSSL) {
                 // Insanely insecure hack to accept self-signed SSL Certificates (if configured)
                 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
             } else {

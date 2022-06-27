@@ -1,12 +1,19 @@
 {
-  "useCORS": true,
-  "httpsCert": "server.cert",
-  "httpsKey": "server.key",
-  "httpsPassphrase": "",
   "proxyUrl": "/~proxy",
   "maxBodySize": 10000000,
   "proxyToSelfSignedSSL": true,
+  "useCORS": true,
   "useSAML": true,
+  "redirection": {
+    "port": 80
+  },
+  "proxy": {
+    "protocol": "https",
+    "port": 8888,
+    "httpsCert": "server.cert",
+    "httpsKey": "server.key",
+    "httpsPassphrase": ""
+  },
   "i2b2SessionRequest": {
     "url": "https://localhost/StartSession.php",
     "timeout": 5000,

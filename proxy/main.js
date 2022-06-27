@@ -27,29 +27,60 @@ global.cryptoKeyDir = path.join(configDir, 'crypto-keys');
 let data = JSON.parse(fs.readFileSync(path.join(configDir, "proxy_settings.json")));
 let whitelist = JSON.parse(fs.readFileSync(path.join(configDir, "whitelist.json")));
 
-// prefix the location of the "crypto-keys" directory to the cert/key filenames given
-data.httpsCert = path.join(cryptoKeyDir, data.httpsCert);
-data.httpsKey = path.join(cryptoKeyDir, data.httpsKey);
-global.proxyConfiguration = data; //<=== accessable in modules too
+global.systemConfiguration = data; //<=== accessable in modules too
+
+// manage all default system configuration settings
+if (systemConfiguration.redirection !== undefined) {
+    if (systemConfiguration.redirection.port === undefined) systemConfiguration.redirection.port = 80;
+    if (process.env.REDIRECT_PORT) systemConfiguration.redirection.port = process.env.REDIRECT_PORT;
+}
+const proxyConfig = systemConfiguration.proxy;
+if (proxyConfig.protocol === undefined) proxyConfig.protocol = "https";
+if (proxyConfig.port === undefined) {
+    if (proxyConfig.protocol === "https") {
+        proxyConfig.port = 443;
+    } else {
+        proxyConfig.port = 80;
+    }
+}
+if (process.env.PROXY_PORT !== undefined)  proxyConfig.port = process.env.PROXY_PORT;
+if (proxyConfig.protocol === "https") {
+    // prefix the location of the "crypto-keys" directory to the cert/key filenames given
+    proxyConfig.httpsCert = path.join(cryptoKeyDir, proxyConfig.httpsCert);
+    proxyConfig.httpsKey = path.join(cryptoKeyDir, proxyConfig.httpsKey);
+}
+
+
 
 // HTTP listener that redirects to HTTPS
 // ======================================================== //
-const functDoRedirect = function(req, res) { res.redirect('https://' + req.headers.host + req.url); };
-const httpRedirect = express();
-if (proxyConfiguration.useCORS) httpRedirect.use(cors());
-httpRedirect.get('*', functDoRedirect);
-httpRedirect.post('*', functDoRedirect);
-const httpServer = http.createServer(httpRedirect);
-let redirPort = process.env.REDIRECT_PORT ? process.env.REDIRECT_PORT : 80;
-httpServer.listen(redirPort, () => { console.log('HTTP Redirect Service running on port ' + redirPort); });
+if (systemConfiguration.redirection !== undefined) {
+    const functDoRedirect = function(req, res) {
+        const hostname = req.headers.host.split(':')[0];
+        if ((systemConfiguration.proxy.protocol === "https" && systemConfiguration.proxy.port === 443) ||
+            (systemConfiguration.proxy.protocol === "http" && systemConfiguration.proxy.port === 80)) 
+        {
+            res.redirect(systemConfiguration.proxy.protocol + '://' + hostname + req.url);
+        } else {
+            res.redirect(systemConfiguration.proxy.protocol + '://' + hostname + ':' + systemConfiguration.proxy.port + req.url);
+        }
+    };
+    const serviceRedirect = express();
+    if (systemConfiguration.useCORS) serviceRedirect.use(cors());
+    serviceRedirect.get('*', functDoRedirect);
+    serviceRedirect.post('*', functDoRedirect);
+    const redirPort = systemConfiguration.redirection.port;
+    const httpServer = http.createServer(serviceRedirect);
+    httpServer.listen(redirPort, () => { console.log('HTTP Redirect Service running on port ' + redirPort); });
+}
 // ======================================================== //
 
 
 
 // build the proxy service
 // ======================================================== //
-const httpsProxy = express();
-if (proxyConfiguration.useCORS) httpsProxy.use(cors());
+const serviceProxy = express();
+if (systemConfiguration.useCORS) serviceProxy.use(cors());
 
 
 
@@ -85,7 +116,7 @@ funcConfigFileReader = function(fileList, funcFound, funcNotFound) {
 
 };
 // -------------------------------------------------------- //
-httpsProxy.get('/i2b2_config_cells.json', (req, res) => {
+serviceProxy.get('/i2b2_config_cells.json', (req, res) => {
     const files = [
         path.join(configDir, 'i2b2_config_cells.json'),
         path.join(hostingDir, 'i2b2_config_cells.json')
@@ -100,7 +131,7 @@ httpsProxy.get('/i2b2_config_cells.json', (req, res) => {
     );
 });
 // -------------------------------------------------------- //
-httpsProxy.get('/i2b2_config_domains.json', (req, res) => {
+serviceProxy.get('/i2b2_config_domains.json', (req, res) => {
     const files = [
         path.join(configDir, 'i2b2_config_domains.json'),
         path.join(hostingDir, 'i2b2_config_domains.json')
@@ -110,7 +141,7 @@ httpsProxy.get('/i2b2_config_domains.json', (req, res) => {
         (data) => {
             // override the "urlProxy" property
             let newData = JSON.parse(data);
-            newData.urlProxy = proxyConfiguration.proxyUrl;
+            newData.urlProxy = systemConfiguration.proxyUrl;
             res.send(JSON.stringify(newData, null, 4));
         }, ()=> {
             res.sendStatus(404);
@@ -119,7 +150,7 @@ httpsProxy.get('/i2b2_config_domains.json', (req, res) => {
 });
 
 // -------------------------------------------------------- //
-httpsProxy.get('/plugins/plugins.json', (req, res) => {
+serviceProxy.get('/plugins/plugins.json', (req, res) => {
     let plugins = [];
     function walkDir(dir) {
         let directoryListing = fs.readdirSync(dir);
@@ -142,24 +173,26 @@ httpsProxy.get('/plugins/plugins.json', (req, res) => {
 
 });
 
+
 // use SAML if configured
-if (proxyConfiguration.useSAML) httpsProxy.use("/saml", require(path.join(baseDir, "proxy", "saml.js")));
+if (systemConfiguration.useSAML) serviceProxy.use("/saml", require(path.join(baseDir, "proxy", "saml.js")));
+
 
 // use GitManager if configured
 try {
-    if (global.proxyConfiguration.gitManager.active) httpsProxy.use(global.proxyConfiguration.gitManager.managerUrl, require(path.join(baseDir, "proxy", "git-manager.js")));
+    if (systemConfiguration.gitManager.active) serviceProxy.use(systemConfiguration.gitManager.managerUrl, require(path.join(baseDir, "proxy", "git-manager.js")));
 } catch(e) {}
 
 
 
 // serve the static files
 // -------------------------------------------------------- //
-httpsProxy.use(express.static(hostingDir));
+serviceProxy.use(express.static(hostingDir));
 
 // proxy service
 // -------------------------------------------------------- //
-httpsProxy.use(function(req, res, next) {
-    if (req._parsedUrl.pathname !== proxyConfiguration.proxyUrl) {
+serviceProxy.use(function(req, res, next) {
+    if (req._parsedUrl.pathname !== systemConfiguration.proxyUrl) {
         next();
     } else {
         // logging output
@@ -177,7 +210,7 @@ httpsProxy.use(function(req, res, next) {
         req.on('data', function(data) {
             body.push(data);
             body_len += data.length;
-            if (body_len > proxyConfiguration.maxBodySize) {
+            if (body_len > systemConfiguration.maxBodySize) {
                 // FLOOD ATTACK OR FAULTY CLIENT, NUKE REQUEST
                 req.connection.destroy();
                 // logging output
@@ -198,6 +231,7 @@ httpsProxy.use(function(req, res, next) {
                 proxy_to = new URL(proxy_to);
                 let abort = false;
                  _.forEach(req.headers, (value, key) => {
+                     // SECURITY: Filter out forbidden headers, needed for i2b2 Java server implementation of SAML2
                      if (ignoreHeaders.find(badHeader => key.toLowerCase() === badHeader.toLowerCase() ) === undefined) {
                          headers[key] = value;
                      } else {
@@ -297,7 +331,7 @@ httpsProxy.use(function(req, res, next) {
                         proxy_request = http.request(opts, proxy_reqest_hdlr);
                         break;
                     case "https:":
-                        if (proxyConfiguration.proxyToSelfSignedSSL) {
+                        if (systemConfiguration.proxyToSelfSignedSSL) {
                             // Insanely insecure hack to accept self-signed SSL Certificates (if configured)
                             process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
                         } else {
@@ -334,19 +368,23 @@ httpsProxy.use(function(req, res, next) {
 });
 
 
-// setup SSL
+// setup Proxy hosting server
 // ======================================================== //
-const httpsServer = https.createServer({
-    key: fs.readFileSync(proxyConfiguration.httpsKey),
-    cert: fs.readFileSync(proxyConfiguration.httpsCert),
-    passphrase: proxyConfiguration.httpsPassphrase
-}, httpsProxy);
-
-// start proxy
-// ======================================================== //
-let proxyPort = process.env.PROXY_PORT ? process.env.PROXY_PORT : 443;
-httpsServer.listen(proxyPort, () => {
-    console.log('HTTPS Proxy Server running on port ' + proxyPort);
-});
+let func_startReporter = function() {
+    console.log(proxyConfig.protocol.toUpperCase() + ' Proxy Server running on port ' + proxyConfig.port);
+};
+let proxyServer;
+if (proxyConfig.protocol === 'https') {
+    let settings = {
+        key: fs.readFileSync(proxyConfig.httpsKey),
+        cert: fs.readFileSync(proxyConfig.httpsCert),
+    };
+    if (proxyConfig.httpsPassphrase !== undefined) settings.passphrase = proxyConfig.httpsPassphrase;
+    proxyServer = https.createServer(settings, serviceProxy);
+    proxyServer.listen(proxyConfig.port, func_startReporter);
+} else {
+    proxyServer = http.createServer(serviceProxy);
+    proxyServer.listen(proxyConfig.port, func_startReporter);
+}
 
 console.log(">>>> STARTED " + (new Date()).toISOString() + " <<<<");
