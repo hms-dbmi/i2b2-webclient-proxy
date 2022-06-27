@@ -20,11 +20,25 @@
   | Setting Name | Data Type | Description |
   | ------------ |:---------:| ----------- |
   | **`proxyUrl`** | string | URL path that the proxy server operates on, by default it is set to `/~proxy` |  
-  | **`useCORS`** | boolean | enable CORS use to allow advanced hosting (_experimental_) |
-  | **`proxyToSelfSignedSSL`** | boolean | enables proxy to access i2b2 servers via HTTPS when they are running a self-signed certificate |
-  | **`httpsCert`** | string | filename of the HTTPS certificate within the `/config/crypto-keys` directory |
-  | **`httpsKey`** | string | filename of the HTTPS private key within the `/config/crypto-keys` directory  |
-  | **`maxBodySize`** | integer | maximum request body size (in bytes) that will be accepted by the proxy for forwarding |
+  | **`useCORS`** | boolean | Enable CORS use to allow advanced hosting (_experimental_) |
+  | **`proxyToSelfSignedSSL`** | boolean | Enables proxy to access i2b2 servers via HTTPS when they are running a self-signed certificate |
+  | **`maxBodySize`** | integer | Maximum request body size (in bytes) that will be accepted by the proxy for forwarding |
+  | **`useSAML`** | boolean | Should the SAML2 authentication system be enabled. |
+  | **`redirection`** | object | Should redirection service be running? Delete to disable. |
+  | **`redirection.port`** | integer | This is the network port that the redirection service runs on. Defaults to 80 if not set. |
+  | **`proxy`** | object | Object that contains proxy configuration information. |
+  | **`proxy.protocol`** | `http` or `https` | What protocol should the proxy use? |
+  | **`proxy.port`** | integer | What network port should the proxy operate on? |
+  | **`proxy.httpsCert`** | string | Filename of the HTTPS certificate within the `/config/crypto-keys` directory. |
+  | **`proxy.httpsKey`** | string | Filename of the HTTPS private key within the `/config/crypto-keys` directory.  |
+  | **`proxy.httpsPassphrase`** | string | The passphrase that the private key has been encrypted with. Delete for none. |
+  | **`gitManager`** | object | This is the configuration object for the GitManager service.  Delete to disable. |
+  | **`gitManager.active`** | boolean | Disable GitManager service while still having configuration saved. |
+  | **`gitManager.managerUrl`** | string | URL path that the GitManager service operates on. |
+  | **`gitManager.password`** | string | Shared secret password used to secure the GitManager service. |
+  | **`gitManager.repo`** | string | URL for the Git repo that GitManager service loads from. |
+  | **`gitManager.headName`** | string | This is the default branch that is loaded. It should be "master" or "main". |
+
 
 Also within the project's `config` subdirectory you will also find a `whitelist.json` file that lists the only hostnames that the proxy will forward for.
 It has the following format:
