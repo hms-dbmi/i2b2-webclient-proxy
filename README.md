@@ -28,7 +28,7 @@
   | **`redirection.port`** | integer | This is the network port that the redirection service runs on. Defaults to 80 if not set. |
   | **`proxy`** | object | Object that contains proxy configuration information. |
   | **`proxy.protocol`** | `http` or `https` | What protocol should the proxy use? |
-  | **`proxy.port`** | integer | What network port should the proxy operate on? |
+  | **`proxy.port`** | integer | What network port should the proxy operate on? Defaults to 443 if not set. |
   | **`proxy.httpsCert`** | string | Filename of the HTTPS certificate within the `/config/crypto-keys` directory. |
   | **`proxy.httpsKey`** | string | Filename of the HTTPS private key within the `/config/crypto-keys` directory.  |
   | **`proxy.httpsPassphrase`** | string | The passphrase that the private key has been encrypted with. Delete for none. |
