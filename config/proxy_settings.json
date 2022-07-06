@@ -1,9 +1,9 @@
 {
   "proxyUrl": "/~proxy",
   "maxBodySize": 10000000,
-  "proxyToSelfSignedSSL": true,
-  "useCORS": true,
-  "useSAML": true,
+  "proxyToSelfSignedSSL": false,
+  "useCORS": false,
+  "useSAML": false,
   "redirection": {
     "port": 80
   },
@@ -13,19 +13,5 @@
     "httpsCert": "server.cert",
     "httpsKey": "server.key",
     "httpsPassphrase": ""
-  },
-  "i2b2SessionRequest": {
-    "url": "https://localhost/StartSession.php",
-    "timeout": 5000,
-    "data": {
-      "secret": "MY-SHARED-SECRET"
-    }
-  },
-  "gitManager": {
-    "active": true,
-    "managerUrl": "/~manager",
-    "password": "MY-TEAM-PASSWORD",
-    "repo": "https://github.com/hms-dbmi/i2b2v2-webclient.git",
-    "headName": "master"
   }
 }
