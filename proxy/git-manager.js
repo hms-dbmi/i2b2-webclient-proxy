@@ -4,15 +4,15 @@ const router = express.Router();
 const path = require('path');
 const simpleGit = require('simple-git');
 
-if (proxyConfiguration.gitManager.repo !== undefined && proxyConfiguration.gitManager.password !== undefined) {
+if (systemConfiguration.gitManager.repo !== undefined && systemConfiguration.gitManager.password !== undefined) {
     const git = simpleGit(hostingDir);
     const func_checkPassword = (password, response) => {
-        if (password === 'Bearer ' + proxyConfiguration.gitManager.password) return true;
+        if (password === 'Bearer ' + systemConfiguration.gitManager.password) return true;
         response.sendStatus(401); // unauthorized
         return false;
     };
 
-    proxyConfiguration.gitManager.repo = proxyConfiguration.gitManager.repo.replace(/.git$/i, '');
+    systemConfiguration.gitManager.repo = systemConfiguration.gitManager.repo.replace(/.git$/i, '');
 
     router.get('/load/:id', (req, res) => {
 
@@ -33,8 +33,8 @@ if (proxyConfiguration.gitManager.repo !== undefined && proxyConfiguration.gitMa
 
     router.get('/options', (req, res) => {
         let opts = {};
-        opts.repo = proxyConfiguration.gitManager.repo;
-        opts.headName = proxyConfiguration.gitManager.headName;
+        opts.repo = systemConfiguration.gitManager.repo;
+        opts.headName = systemConfiguration.gitManager.headName;
         res.header('Content-Type','application/json').send(opts);
     });
 
@@ -43,7 +43,7 @@ if (proxyConfiguration.gitManager.repo !== undefined && proxyConfiguration.gitMa
         git.branch('-l').then((branches) => {
             res.header('Content-Type','application/json').send(branches);
         }).catch((e) => {
-            console.error("ERROR with call to /"+proxyConfiguration.gitManager.managerUrl+"/branch");
+            console.error("ERROR with call to /"+systemConfiguration.gitManager.managerUrl+"/branch");
             console.dir(e);
             res.sendStatus(500);
         });
