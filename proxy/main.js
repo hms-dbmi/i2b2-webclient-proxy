@@ -80,7 +80,10 @@ if (systemConfiguration.redirection !== undefined) {
 // build the proxy service
 // ======================================================== //
 const serviceProxy = express();
-if (systemConfiguration.useCORS) serviceProxy.use(cors());
+if (systemConfiguration.useCORS) {
+    console.log("Proxy is using CORS");
+    serviceProxy.use(cors());
+}
 
 
 
@@ -175,13 +178,22 @@ serviceProxy.get('/plugins/plugins.json', (req, res) => {
 
 
 // use SAML if configured
-if (systemConfiguration.useSAML) serviceProxy.use("/saml", require(path.join(baseDir, "proxy", "saml.js")));
+if (systemConfiguration.useSAML) {
+    console.log("System is using SAML configuration");
+    serviceProxy.use("/saml", require(path.join(baseDir, "proxy", "saml.js")));
+}
 
 
 // use GitManager if configured
 try {
-    if (systemConfiguration.gitManager.active) serviceProxy.use(systemConfiguration.gitManager.managerUrl, require(path.join(baseDir, "proxy", "git-manager.js")));
-} catch(e) {}
+    if (systemConfiguration.gitManager.active) {
+        console.log("System is using Git Manager module");
+        serviceProxy.use(systemConfiguration.gitManager.managerUrl, require(path.join(baseDir, "proxy", "git-manager.js")));
+    }
+} catch(e) {
+    console.error("GitManager failed to load!");
+    console.dir(e);
+}
 
 
 
