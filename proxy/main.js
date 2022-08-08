@@ -9,6 +9,10 @@ const path = require('path');
 const dom = require('xmldom').DOMParser;
 const xpath = require('xpath');
 
+// logging setup
+const logger = require('pino')();
+
+
 // === Do not proxy these headers from the browser to the i2b2 server ===
 // Prevents security issues with SAML Authentication
 const ignoreHeaders = [
@@ -50,6 +54,16 @@ if (proxyConfig.protocol === "https") {
     proxyConfig.httpsKey = path.join(cryptoKeyDir, proxyConfig.httpsKey);
 }
 
+// handle acceptance (or not) of self-signed certificates when proxying
+if (systemConfiguration.proxyToSelfSignedSSL) {
+    logger.error((new Error("Self-signed SSL certificates are now allowed!")), 'To prevent Proxy service from allowing the use of self-signed SSL certificates edit this location in code!');
+    logger.warn({}, 'THE PROXY SERVER IS CONFIGURED TO ALLOW SELF-SIGNED CERTIFICATES');
+    // Insanely insecure hack to accept self-signed SSL Certificates (if configured)
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+} else {
+    logger.warn({}, 'The proxy server is configured to REJECT self-signed certificates');
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "1";
+}
 
 
 // HTTP listener that redirects to HTTPS
@@ -343,12 +357,6 @@ serviceProxy.use(function(req, res, next) {
                         proxy_request = http.request(opts, proxy_reqest_hdlr);
                         break;
                     case "https:":
-                        if (systemConfiguration.proxyToSelfSignedSSL) {
-                            // Insanely insecure hack to accept self-signed SSL Certificates (if configured)
-                            process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-                        } else {
-                            process.env.NODE_TLS_REJECT_UNAUTHORIZED = "1";
-                        }
                         proxy_request = https.request(opts, proxy_reqest_hdlr);
                         break;
                     default:
