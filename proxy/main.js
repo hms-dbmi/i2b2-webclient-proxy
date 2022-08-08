@@ -124,7 +124,7 @@ if (systemConfiguration.useSAML) {
 
 
 // use GitManager if configured
-if (systemConfiguration.gitManager.active) {
+if (systemConfiguration.gitManager && systemConfiguration.gitManager.active) {
     let moduleFile = path.join(baseDir, "proxy", "git-manager.js");
     try {
         serviceProxy.use(systemConfiguration.gitManager.managerUrl, require(moduleFile));
