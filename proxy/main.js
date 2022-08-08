@@ -103,102 +103,23 @@ if (systemConfiguration.redirection !== undefined) {
 const serviceProxy = express();
 if (systemConfiguration.useCORS) serviceProxy.use(cors());
 
-
-
-// handle the configuration files
-// -------------------------------------------------------- //
-funcConfigFileReader = function(fileList, funcFound, funcNotFound) {
-    let found = false;
-    let data = "";
-    let file = "";
-    while (fileList.length) {
-        file = fileList.shift();
-        try {
-            data = fs.readFileSync(file);
-            found = true;
-            break;
-        } catch (e) {}
-    }
-    // log where the file is loaded from (ease debugging issues)
-    let loadingFrom;
-    if (file.startsWith(configDir)) {
-        loadingFrom = "outside of docker, the configuration directory of the proxy server repo.";
-    } else {
-        loadingFrom = "within docker, the hosting directory of the webclient.";
-    }
-
-    console.log('"' + path.basename(file) + '" was loaded from ' + loadingFrom);
-
-    if (found) {
-        funcFound(data);
-    } else {
-        funcNotFound();
-    }
-
-};
-// -------------------------------------------------------- //
-serviceProxy.get('/i2b2_config_cells.json', (req, res) => {
-    const files = [
-        path.join(configDir, 'i2b2_config_cells.json'),
-        path.join(hostingDir, 'i2b2_config_cells.json')
-    ];
-    funcConfigFileReader(
-        files,
-        (data) => {
-            res.send(data);
-        }, ()=> {
-            res.sendStatus(404);
-        }
-    );
-});
-// -------------------------------------------------------- //
-serviceProxy.get('/i2b2_config_domains.json', (req, res) => {
-    const files = [
-        path.join(configDir, 'i2b2_config_domains.json'),
-        path.join(hostingDir, 'i2b2_config_domains.json')
-    ];
-    funcConfigFileReader(
-        files,
-        (data) => {
-            // override the "urlProxy" property
-            let newData = JSON.parse(data);
-            newData.urlProxy = systemConfiguration.proxyUrl;
-            res.send(JSON.stringify(newData, null, 4));
-        }, ()=> {
-            res.sendStatus(404);
-        }
-    );
-});
-
-// -------------------------------------------------------- //
-serviceProxy.get('/plugins/plugins.json', (req, res) => {
-    let plugins = [];
-    function walkDir(dir) {
-        let directoryListing = fs.readdirSync(dir);
-        if (directoryListing.includes('plugin.json')) {
-            plugins.push(dir);
-            return;
-        }
-        for (let i in directoryListing) {
-            let dirPath = path.join(dir, directoryListing[i]);
-            if (fs.statSync(dirPath).isDirectory()) walkDir(dirPath);
-        }
-    }
-
-    let pluginsDir = path.join(hostingDir, 'plugins');
-    walkDir(pluginsDir);
-    plugins.forEach((d, i) => {
-        plugins[i] = d.replace(pluginsDir + path.sep, '').replaceAll(path.sep, '.');
-    });
-    res.send(JSON.stringify(plugins));
-
-});
-
+// manage overriding/mapping of config files
+serviceProxy.use(require(path.join(baseDir, "proxy", "config-files.js")));
 
 // use SAML if configured
 if (systemConfiguration.useSAML) {
-    console.log("System is using SAML configuration");
-    serviceProxy.use("/saml", require(path.join(baseDir, "proxy", "saml.js")));
+    let moduleFile = path.join(baseDir, "proxy", "saml.js");
+    try {
+        serviceProxy.use("/saml", require(moduleFile));
+        logger.warn({saml: {
+            enabled:true,
+            module: moduleFile
+        }}, "SAML use is enabled");
+    } catch(e) {
+        logger.error({saml: {enabled:true, module:moduleFile}, error: e}, "Error enabling SAML support");
+    }
+} else {
+    logger.warn({saml: {enabled:false}}, "SAML support is NOT enabled");
 }
 
 
