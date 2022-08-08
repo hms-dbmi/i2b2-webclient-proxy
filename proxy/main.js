@@ -60,7 +60,8 @@ if (systemConfiguration.proxyToSelfSignedSSL) {
     logger.error((new Error("Self-signed SSL certificates are now allowed!")), 'To prevent Proxy service from allowing the use of self-signed SSL certificates edit this location in code!');
     logger.warn({}, 'THE PROXY SERVER IS CONFIGURED TO ALLOW SELF-SIGNED CERTIFICATES');
     // Insanely insecure hack to accept self-signed SSL Certificates (if configured)
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    // process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    exit();
 } else {
     logger.warn({}, 'The proxy server is configured to REJECT self-signed certificates');
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "1";
@@ -124,7 +125,7 @@ if (systemConfiguration.useSAML) {
 
 
 // use GitManager if configured
-if (systemConfiguration.gitManager.active) {
+if (systemConfiguration.gitManager && systemConfiguration.gitManager.active) {
     let moduleFile = path.join(baseDir, "proxy", "git-manager.js");
     try {
         serviceProxy.use(systemConfiguration.gitManager.managerUrl, require(moduleFile));
