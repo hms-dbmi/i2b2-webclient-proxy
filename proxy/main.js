@@ -9,6 +9,10 @@ const path = require('path');
 const dom = require('xmldom').DOMParser;
 const xpath = require('xpath');
 
+// logging setup
+const logger = require('pino')();
+
+
 // === Do not proxy these headers from the browser to the i2b2 server ===
 // Prevents security issues with SAML Authentication
 const ignoreHeaders = [
@@ -22,6 +26,7 @@ global.baseDir = __dirname.split(path.sep).slice(0,-1).join(path.sep);
 global.hostingDir = path.join(baseDir, 'webclient');
 global.configDir = path.join(baseDir, 'config');
 global.cryptoKeyDir = path.join(configDir, 'crypto-keys');
+global.logger = logger;
 
 // read the configuration from "/config/proxy_settings.json"
 let data = JSON.parse(fs.readFileSync(path.join(configDir, "proxy_settings.json")));
@@ -50,6 +55,16 @@ if (proxyConfig.protocol === "https") {
     proxyConfig.httpsKey = path.join(cryptoKeyDir, proxyConfig.httpsKey);
 }
 
+// handle acceptance (or not) of self-signed certificates when proxying
+if (systemConfiguration.proxyToSelfSignedSSL) {
+    logger.error((new Error("Self-signed SSL certificates are now allowed!")), 'To prevent Proxy service from allowing the use of self-signed SSL certificates edit this location in code!');
+    logger.warn({}, 'THE PROXY SERVER IS CONFIGURED TO ALLOW SELF-SIGNED CERTIFICATES');
+    // Insanely insecure hack to accept self-signed SSL Certificates (if configured)
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+} else {
+    logger.warn({}, 'The proxy server is configured to REJECT self-signed certificates');
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "1";
+}
 
 
 // HTTP listener that redirects to HTTPS
@@ -71,7 +86,13 @@ if (systemConfiguration.redirection !== undefined) {
     serviceRedirect.post('*', functDoRedirect);
     const redirPort = systemConfiguration.redirection.port;
     const httpServer = http.createServer(serviceRedirect);
-    httpServer.listen(redirPort, () => { console.log('HTTP Redirect Service running on port ' + redirPort); });
+    httpServer.listen(redirPort, () => {
+        let msg = 'HTTP Redirect Service running on port ' + redirPort;
+        logger.warn({"redirection": {
+            "from": 'http:'+redirPort,
+            "to": systemConfiguration.proxy.protocol+':'+systemConfiguration.proxy.port
+            }}, msg);
+    });
 }
 // ======================================================== //
 
@@ -82,112 +103,53 @@ if (systemConfiguration.redirection !== undefined) {
 const serviceProxy = express();
 if (systemConfiguration.useCORS) serviceProxy.use(cors());
 
-
-
-// handle the configuration files
-// -------------------------------------------------------- //
-funcConfigFileReader = function(fileList, funcFound, funcNotFound) {
-    let found = false;
-    let data = "";
-    let file = "";
-    while (fileList.length) {
-        file = fileList.shift();
-        try {
-            data = fs.readFileSync(file);
-            found = true;
-            break;
-        } catch (e) {}
-    }
-    // log where the file is loaded from (ease debugging issues)
-    let loadingFrom;
-    if (file.startsWith(configDir)) {
-        loadingFrom = "outside of docker, the configuration directory of the proxy server repo.";
-    } else {
-        loadingFrom = "within docker, the hosting directory of the webclient.";
-    }
-
-    console.log('"' + path.basename(file) + '" was loaded from ' + loadingFrom);
-
-    if (found) {
-        funcFound(data);
-    } else {
-        funcNotFound();
-    }
-
-};
-// -------------------------------------------------------- //
-serviceProxy.get('/i2b2_config_cells.json', (req, res) => {
-    const files = [
-        path.join(configDir, 'i2b2_config_cells.json'),
-        path.join(hostingDir, 'i2b2_config_cells.json')
-    ];
-    funcConfigFileReader(
-        files,
-        (data) => {
-            res.send(data);
-        }, ()=> {
-            res.sendStatus(404);
-        }
-    );
-});
-// -------------------------------------------------------- //
-serviceProxy.get('/i2b2_config_domains.json', (req, res) => {
-    const files = [
-        path.join(configDir, 'i2b2_config_domains.json'),
-        path.join(hostingDir, 'i2b2_config_domains.json')
-    ];
-    funcConfigFileReader(
-        files,
-        (data) => {
-            // override the "urlProxy" property
-            let newData = JSON.parse(data);
-            newData.urlProxy = systemConfiguration.proxyUrl;
-            res.send(JSON.stringify(newData, null, 4));
-        }, ()=> {
-            res.sendStatus(404);
-        }
-    );
-});
-
-// -------------------------------------------------------- //
-serviceProxy.get('/plugins/plugins.json', (req, res) => {
-    let plugins = [];
-    function walkDir(dir) {
-        let directoryListing = fs.readdirSync(dir);
-        if (directoryListing.includes('plugin.json')) {
-            plugins.push(dir);
-            return;
-        }
-        for (let i in directoryListing) {
-            let dirPath = path.join(dir, directoryListing[i]);
-            if (fs.statSync(dirPath).isDirectory()) walkDir(dirPath);
-        }
-    }
-
-    let pluginsDir = path.join(hostingDir, 'plugins');
-    walkDir(pluginsDir);
-    plugins.forEach((d, i) => {
-        plugins[i] = d.replace(pluginsDir + path.sep, '').replaceAll(path.sep, '.');
-    });
-    res.send(JSON.stringify(plugins));
-
-});
-
+// manage overriding/mapping of config files
+serviceProxy.use(require(path.join(baseDir, "proxy", "config-files.js")));
 
 // use SAML if configured
-if (systemConfiguration.useSAML) serviceProxy.use("/saml", require(path.join(baseDir, "proxy", "saml.js")));
+if (systemConfiguration.useSAML) {
+    let moduleFile = path.join(baseDir, "proxy", "saml.js");
+    try {
+        serviceProxy.use("/saml", require(moduleFile));
+        logger.warn({saml: {
+            enabled:true,
+            module: moduleFile
+        }}, "SAML use is enabled");
+    } catch(e) {
+        logger.error({saml: {enabled:true, module:moduleFile}, error: e}, "Error enabling SAML support");
+    }
+} else {
+    logger.warn({saml: {enabled:false}}, "SAML support is NOT enabled");
+}
 
 
 // use GitManager if configured
-try {
-    if (systemConfiguration.gitManager.active) serviceProxy.use(systemConfiguration.gitManager.managerUrl, require(path.join(baseDir, "proxy", "git-manager.js")));
-} catch(e) {}
-
+if (systemConfiguration.gitManager.active) {
+    let moduleFile = path.join(baseDir, "proxy", "git-manager.js");
+    try {
+        serviceProxy.use(systemConfiguration.gitManager.managerUrl, require(moduleFile));
+        logger.warn({"gitmanager": {
+            enabled: true,
+            module: moduleFile,
+            url: systemConfiguration.gitManager.managerUrl }
+        }, "GitManager is enabled");
+    } catch(e) {
+        logger.error({"gitmanager": {
+                enabled: true,
+                module: moduleFile,
+                url: systemConfiguration.gitManager.managerUrl },
+            error: e
+        }, "Error enabling GitManager");
+    }
+} else {
+    logger.warn({"gitmanager": {enabled: false}}, "GitManager is NOT enabled");
+}
 
 
 // serve the static files
 // -------------------------------------------------------- //
 serviceProxy.use(express.static(hostingDir));
+logger.warn({"static_hosting": {dir: hostingDir}}, "Hosting web client found in " + hostingDir);
 
 // proxy service
 // -------------------------------------------------------- //
@@ -196,13 +158,14 @@ serviceProxy.use(function(req, res, next) {
         next();
     } else {
         // logging output
-        let logline = [];
+        let logObject = {};
         let client_ip = req.headers['x-forwarded-for'] ||
             req.connection.remoteAddress ||
             req.socket.remoteAddress ||
             req.connection.socket.remoteAddress;
-        logline.push((new Date()).toISOString() + " | ");
-        logline.push(client_ip + " --");
+        let startTimestamp = (new Date()).toISOString();
+        logObject.timestamp = startTimestamp;
+        logObject.client_ip = client_ip;
 
         let body = [];
         let body_len = 0;
@@ -214,11 +177,13 @@ serviceProxy.use(function(req, res, next) {
                 // FLOOD ATTACK OR FAULTY CLIENT, NUKE REQUEST
                 req.connection.destroy();
                 // logging output
-                logline.push("[EXCESSIVE UPLOAD TERMINATED] " + body_len + " bytes");
-                console.log(logline.join(''));
+                logObject.errorMsg = "EXCESSIVE UPLOAD SIZE";
+                logObject.body_len = body_len;
+                logger.error(logObject, "Proxy request body was larger than " + body_len + " bytes");
             }
         });
         req.on('end', function() {
+            logObject.body_len = body_len;
             let headers = {};
             // load the xml send in POST body and extract the redirect URL value
             try {
@@ -226,9 +191,16 @@ serviceProxy.use(function(req, res, next) {
                 const xml = new dom().parseFromString(doc_str);
                 let domain = xpath.select("//security/domain/text()", xml)[0].toString();
                 let usrname = xpath.select("//security/username/text()", xml)[0].toString();
-                let proxy_to = xpath.select("//proxy/redirect_url/text()", xml)[0].toString();
+                // log credentials
+                logObject.credentials = {
+                    domain: domain,
+                    username: usrname
+                };
                 // forward the request to the redirect URL
+                let proxy_to = xpath.select("//proxy/redirect_url/text()", xml)[0].toString();
+                logObject.service = proxy_to;
                 proxy_to = new URL(proxy_to);
+
                 let abort = false;
                  _.forEach(req.headers, (value, key) => {
                      // SECURITY: Filter out forbidden headers, needed for i2b2 Java server implementation of SAML2
@@ -236,14 +208,15 @@ serviceProxy.use(function(req, res, next) {
                          headers[key] = value;
                      } else {
                          // log header injection
-                         logline.push('\n\tCLIENT ATTEMPTED TO INJECT FORBIDDEN HEADER "' + key + '" = "' + value + '"');
+                         logObject.request_headers = req.headers;
+                         logObject.request_body = doc_str;
+                         logger.error(logObject, 'CLIENT ATTEMPTED TO INJECT FORBIDDEN HEADER "' + key + '" = "' + value + '", request terminated');
                          // end the connection
                          abort = true;
                      }
                 });
                 if (abort) {
-                    logline.push('\nTerminating connection with 403\n');
-                    console.log(logline.join(''));
+                    // Terminating connection with 403
                     res.sendStatus(403).end();
                     return;
                 }
@@ -264,23 +237,11 @@ serviceProxy.use(function(req, res, next) {
                     method: req.method,
                     headers: headers
                 };
-                // logging output
-                logline.push("[" + domain + "/" + usrname + "]--> ");
-                logline.push(proxy_to.protocol + "//" + proxy_to.hostname);
-                if (opts['port'] === '') {
-                    delete opts['port'];
-                } else {
-                    logline.push(":" + opts['port']);
-                }
-                logline.push(proxy_to.pathname + " ");
 
                 //Check whitelist
                 let hostUrl =  opts.protocol + opts.hostname;
                 hostUrl = hostUrl.toUpperCase();
-
-                if (opts.port) {
-                    hostUrl = hostUrl + ":" + opts.port;
-                }
+                if (opts.port) hostUrl = hostUrl + ":" + opts.port;
 
                 let allowedHostUrls  = [];
                 if(whitelist && Object.keys(whitelist).length > 0)
@@ -290,9 +251,10 @@ serviceProxy.use(function(req, res, next) {
 
                     if(!allowedHostUrls.includes(hostUrl)) {
                         let whitelistErr = "Host is not whitelisted: " + hostUrl;
-                        logline.push("\n[CODE ERROR] ");
-                        logline.push(whitelistErr);
-                        console.log(logline.join(''));
+                        logObject.request_headers = req.headers;
+                        logObject.request_body = doc_str;
+                        logObject.errorMsg = whitelistErr;
+                        logger.error(logObject, 'Request to non-whitelisted host');
                         res.end(whitelistErr);
                         return;
                     }
@@ -300,7 +262,6 @@ serviceProxy.use(function(req, res, next) {
 
                 let i2b2_result = [];
                 const proxy_reqest_hdlr  = function(proxy_res) {
-                    logline.push("(" + proxy_res.statusCode + ")");
                     res.statusCode = proxy_res.statusCode;
                     _.forEach(proxy_res.headers, (value, key) => {
                         res.setHeader(key, value);
@@ -312,45 +273,48 @@ serviceProxy.use(function(req, res, next) {
                         i2b2_result.push(chunk);
                     });
                     proxy_res.on('end', () => {
-                        logline.push(" SENT");
-                        console.log(logline.join(''));
-                        res.end(Buffer.concat(i2b2_result));
+                        let responseMsg = Buffer.concat(i2b2_result);
+                        logObject.response_len = responseMsg.length;
+                        logObject.response_status = proxy_res.statusCode;
+                        logger.info(logObject, 'Successful proxy request');
+                        res.end(responseMsg);
                     });
                     proxy_res.on('error', (e) => {
-                        logline.push("[PROXY HANDLER ERROR]");
-                        console.log(logline.join(''));
-                        console.error(`problem with response: ${e.message}`);
-                        console.dir(e);
-                        res.end(Buffer.concat(i2b2_result));
+                        let responseMsg = Buffer.concat(i2b2_result);
+                        logObject.error = e;
+                        logObject.errorMsg = "An error occured during the proxy request";
+                        logObject.response = responseMsg;
+                        logObject.response_status = proxy_res.statusCode;
+                        logObject.request_obj = proxy_res;
+                        logger.error(logObject, 'Request to non-whitelisted host');
+                        res.end(responseMsg);
                     });
-
                 };
+
                 let proxy_request;
                 switch (proxy_to.protocol) {
                     case "http:":
                         proxy_request = http.request(opts, proxy_reqest_hdlr);
                         break;
                     case "https:":
-                        if (systemConfiguration.proxyToSelfSignedSSL) {
-                            // Insanely insecure hack to accept self-signed SSL Certificates (if configured)
-                            process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-                        } else {
-                            process.env.NODE_TLS_REJECT_UNAUTHORIZED = "1";
-                        }
                         proxy_request = https.request(opts, proxy_reqest_hdlr);
                         break;
                     default:
-                        console.log(logline.join(''));
-                        console.error("proxy engine does not support protocol = " + proxy_to.protocol);
+                        let msg = "proxy engine does not support protocol = " + proxy_to.protocol;
+                        logObject.errorMsg = msg;
+                        logObject.error = new Error("Invalid Protocol");
+                        logger.error(logObject, "Invalid Protocol");
                         return false;
                         break;
                 }
                 proxy_request.on('error', (e) => {
-                    logline.push("[PROXY ERROR]");
-                    console.log(logline.join(''));
-                    console.error(`problem with request: ${e.message}`);
-                    console.dir(e);
-                    res.end(String(Buffer.concat(i2b2_result)));
+                    let response = String(Buffer.concat(i2b2_result));
+                    logObject.errorMsg = msg;
+                    logObject.error = e;
+                    logObject.response = response;
+                    logObject.request_obj = proxy_request;
+                    logger.error(logObject, "Problem with request/response");
+                    res.end(response);
                 });
                 body = String(Buffer.concat(body));
                 res.setHeader('i2b2-dev-svr-mode', 'Proxy');
@@ -358,9 +322,10 @@ serviceProxy.use(function(req, res, next) {
                 proxy_request.setHeader('Content-Length', body.length);
                 proxy_request.end(body);
             } catch(e) {
-                logline.push("[CODE ERROR]");
-                console.log(logline.join(''));
-                console.dir(e);
+                let response = String(Buffer.concat(i2b2_result));
+                logObject.errorMsg = "General Error";
+                logObject.error = e;
+                logger.error(logObject, "Internal Error");
                 res.end("Internal Error Logged");
             }
         })
@@ -371,7 +336,11 @@ serviceProxy.use(function(req, res, next) {
 // setup Proxy hosting server
 // ======================================================== //
 let func_startReporter = function() {
-    console.log(proxyConfig.protocol.toUpperCase() + ' Proxy Server running on port ' + proxyConfig.port);
+    let msg = proxyConfig.protocol.toUpperCase() + ' Proxy Server running on port ' + proxyConfig.port;
+    logger.warn({proxy_server: {
+        protocol: proxyConfig.protocol,
+            port: proxyConfig.port
+    }}, msg);
 };
 let proxyServer;
 if (proxyConfig.protocol === 'https') {
@@ -386,5 +355,5 @@ if (proxyConfig.protocol === 'https') {
     proxyServer = http.createServer(serviceProxy);
     proxyServer.listen(proxyConfig.port, func_startReporter);
 }
-
-console.log(">>>> STARTED " + (new Date()).toISOString() + " <<<<");
+let starttime = (new Date()).toISOString();
+logger.warn({"startup": {"datetime": starttime}}, ">>>> STARTED " + starttime + " <<<<");
