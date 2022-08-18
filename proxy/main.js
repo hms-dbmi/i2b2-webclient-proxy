@@ -9,8 +9,6 @@ const path = require('path');
 const dom = require('xmldom').DOMParser;
 const xpath = require('xpath');
 
-// logging setup
-const logger = require('pino')();
 
 
 // === Do not proxy these headers from the browser to the i2b2 server ===
@@ -26,13 +24,18 @@ global.baseDir = __dirname.split(path.sep).slice(0,-1).join(path.sep);
 global.hostingDir = path.join(baseDir, 'webclient');
 global.configDir = path.join(baseDir, 'config');
 global.cryptoKeyDir = path.join(configDir, 'crypto-keys');
-global.logger = logger;
 
 // read the configuration from "/config/proxy_settings.json"
 let data = JSON.parse(fs.readFileSync(path.join(configDir, "proxy_settings.json")));
 let whitelist = JSON.parse(fs.readFileSync(path.join(configDir, "whitelist.json")));
 
 global.systemConfiguration = data; //<=== accessable in modules too
+
+// logging setup
+let loggerSettings = {};
+if (systemConfiguration.logging)  loggerSettings = systemConfiguration.logging;
+const logger = require('pino')(loggerSettings);
+global.logger = logger;
 
 // manage all default system configuration settings
 if (systemConfiguration.redirection !== undefined) {
