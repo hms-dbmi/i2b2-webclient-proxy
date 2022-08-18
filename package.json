@@ -8,6 +8,7 @@
     "express": "^4.17.3",
     "lodash": "^4.17.21",
     "pino": "^8.4.0",
+    "pino-pretty": "^9.0.0",
     "samlify": "^2.8.4",
     "simple-git": "^3.7.1",
     "xmldom": "^0.6.0",
