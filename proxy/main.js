@@ -74,7 +74,13 @@ if (systemConfiguration.proxyToSelfSignedSSL) {
 // ======================================================== //
 if (systemConfiguration.redirection !== undefined) {
     const functDoRedirect = function(req, res) {
-        const hostname = req.headers.host.split(':')[0];
+        let hostname = req.headers.host;
+        if (!hostname) {
+            logger.error((new Error("Invalid HTTP request")), 'The proxy server received a non-request connection from: ' + req.ip);
+            res.sendStatus(400);
+            return false;
+        }
+        hostname = hostname.split(':')[0];
         if ((systemConfiguration.proxy.protocol === "https" && systemConfiguration.proxy.port === 443) ||
             (systemConfiguration.proxy.protocol === "http" && systemConfiguration.proxy.port === 80)) 
         {
