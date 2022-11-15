@@ -91,6 +91,7 @@ if (systemConfiguration.redirection !== undefined) {
     };
     const serviceRedirect = express();
     if (systemConfiguration.useCORS) serviceRedirect.use(cors());
+    serviceRedirect.disable('x-powered-by');
     serviceRedirect.get('*', functDoRedirect);
     serviceRedirect.post('*', functDoRedirect);
     const redirPort = systemConfiguration.redirection.port;
@@ -111,6 +112,7 @@ if (systemConfiguration.redirection !== undefined) {
 // ======================================================== //
 const serviceProxy = express();
 if (systemConfiguration.useCORS) serviceProxy.use(cors());
+serviceProxy.disable('x-powered-by');
 
 // manage overriding/mapping of config files
 serviceProxy.use(require(path.join(baseDir, "proxy", "config-files.js")));
