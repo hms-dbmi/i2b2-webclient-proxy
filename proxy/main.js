@@ -9,8 +9,6 @@ const path = require('path');
 const dom = require('xmldom').DOMParser;
 const xpath = require('xpath');
 
-
-
 // === Do not proxy these headers from the browser to the i2b2 server ===
 // Prevents security issues with SAML Authentication
 const ignoreHeaders = [
@@ -27,7 +25,28 @@ global.cryptoKeyDir = path.join(configDir, 'crypto-keys');
 
 // read the configuration from "/config/proxy_settings.json"
 let data = JSON.parse(fs.readFileSync(path.join(configDir, "proxy_settings.json")));
+
+// deal with whitelist in single centralized function
+// ================================================================================================================== //
 let whitelist = JSON.parse(fs.readFileSync(path.join(configDir, "whitelist.json")));
+global.inWhitelist = function(url) {
+    let target = new URL(url);
+
+    // normalize given URL
+    let hostUrl =  target.protocol + target.host;
+    hostUrl = hostUrl.toUpperCase();
+
+    let allowedHostUrls  = [];
+    if (whitelist && Object.keys(whitelist).length > 0) {
+        // create a list of normalized entries to search
+        let protocol = target.protocol.replace(/:$/, '');
+        whitelist[protocol].forEach(element => allowedHostUrls.push((target.protocol + element).toUpperCase()));
+        // search the list for our URL
+        if (allowedHostUrls.includes(hostUrl)) return true;
+        return false;
+    }
+};
+// ================================================================================================================== //
 
 global.systemConfiguration = data; //<=== accessable in modules too
 
@@ -250,25 +269,14 @@ serviceProxy.use(function(req, res, next) {
                 };
 
                 //Check whitelist
-                let hostUrl =  opts.protocol + opts.hostname;
-                hostUrl = hostUrl.toUpperCase();
-                if (opts.port) hostUrl = hostUrl + ":" + opts.port;
-
-                let allowedHostUrls  = [];
-                if(whitelist && Object.keys(whitelist).length > 0)
-                {
-                    let protocol = opts.protocol.replace(/:$/, '');
-                    whitelist[protocol].forEach(element => allowedHostUrls.push((opts.protocol + element).toUpperCase()));
-
-                    if(!allowedHostUrls.includes(hostUrl)) {
-                        let whitelistErr = "Host is not whitelisted: " + hostUrl;
-                        logObject.request_headers = req.headers;
-                        logObject.request_body = doc_str;
-                        logObject.errorMsg = whitelistErr;
-                        logger.error(logObject, 'Request to non-whitelisted host');
-                        res.end(whitelistErr);
-                        return;
-                    }
+                if (!inWhitelist(proxy_to.href)) {
+                    let whitelistErr = "Host is not whitelisted: " + proxy_to.protocol + proxy_to.host;
+                    logObject.request_headers = req.headers;
+                    logObject.request_body = doc_str;
+                    logObject.errorMsg = whitelistErr;
+                    logger.error(logObject, 'Request to non-whitelisted host');
+                    res.end(whitelistErr);
+                    return;
                 }
 
                 let i2b2_result = [];
