@@ -341,7 +341,10 @@ serviceProxy.use(function(req, res, next) {
                 proxy_request.setHeader('Content-Length', body.length);
                 proxy_request.end(body);
             } catch(e) {
-                let response = String(Buffer.concat(i2b2_result));
+                let response;
+                try {
+                    response = String(Buffer.concat(i2b2_result));
+                } catch(e) {}
                 logObject.errorMsg = "General Error";
                 logObject.error = e;
                 logger.error(logObject, "Internal Error");
