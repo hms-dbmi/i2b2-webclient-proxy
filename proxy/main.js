@@ -25,30 +25,33 @@ global.cryptoKeyDir = path.join(configDir, 'crypto-keys');
 
 // read the configuration from "/config/proxy_settings.json"
 let data = JSON.parse(fs.readFileSync(path.join(configDir, "proxy_settings.json")));
+global.systemConfiguration = data; //<=== accessable in modules too
 
 // deal with whitelist in single centralized function
 // ================================================================================================================== //
 let whitelist = JSON.parse(fs.readFileSync(path.join(configDir, "whitelist.json")));
 global.inWhitelist = function(url) {
-    let target = new URL(url);
+    try {
+        let target = new URL(url);
 
-    // normalize given URL
-    let hostUrl =  target.protocol + target.host;
-    hostUrl = hostUrl.toUpperCase();
+        // normalize given URL
+        let hostUrl =  target.protocol + target.host;
+        hostUrl = hostUrl.toUpperCase();
 
-    let allowedHostUrls  = [];
-    if (whitelist && Object.keys(whitelist).length > 0) {
-        // create a list of normalized entries to search
-        let protocol = target.protocol.replace(/:$/, '');
-        whitelist[protocol].forEach(element => allowedHostUrls.push((target.protocol + element).toUpperCase()));
-        // search the list for our URL
-        if (allowedHostUrls.includes(hostUrl)) return true;
+        let allowedHostUrls  = [];
+        if (whitelist && Object.keys(whitelist).length > 0) {
+            // create a list of normalized entries to search
+            let protocol = target.protocol.replace(/:$/, '');
+            whitelist[protocol].forEach(element => allowedHostUrls.push((target.protocol + element).toUpperCase()));
+            // search the list for our URL
+            if (allowedHostUrls.includes(hostUrl)) return true;
+            return false;
+        }
+    } catch (e) {
         return false;
     }
 };
 // ================================================================================================================== //
-
-global.systemConfiguration = data; //<=== accessable in modules too
 
 // logging setup
 let loggerSettings = {};
