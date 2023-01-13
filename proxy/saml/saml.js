@@ -6,15 +6,21 @@ const saml = require('samlify');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const url = require('url');
+
+const cookieParser = require('cookie-parser');
+router.use(cookieParser());
+
 
 // caching of SP and IdP objects
 const idpList = {};
 // load our identity provider module locations
 // ============================================
-fs.readdirSync(path.join(path.dirname(__dirname), 'config','saml')).forEach((file)=>{
+const dirConfigSaml = path.join(global.configDir, 'saml');
+fs.readdirSync(dirConfigSaml).forEach((file)=>{
     let parts = file.toLowerCase().split(".");
     if ((parts.length > 1 ? parts[1] === "js" : false)) {
-        idpList[parts[0]] = { module: "../config/saml/" + parts[0] };
+        idpList[parts[0]] = { module: path.join(dirConfigSaml, parts[0]) };
     }
 });
 
@@ -60,6 +66,9 @@ router.get('/redirect/:service', (req, res) => {
         req.connection.remoteAddress ||
         req.socket.remoteAddress ||
         req.connection.socket.remoteAddress;
+    // set the browser cookie as a server cookie so it is saved until the redirect back
+//    res.cookie('url', req.cookies['url'], { maxAge:3000000 } );
+
     let logline = [];
     logline.push((new Date()).toISOString() + " | ");
     logline.push(client_ip + " --[SAML Redirect]--> ");
@@ -97,43 +106,64 @@ router.post('/acs/:service', bodyParser.urlencoded({ extended: false }), (req, r
         res.sendStatus(404);
         return;
     }
+
+    // get the PM service URL that the user is logging into
+    let urlPMService = req.cookies['url'];
+    let i2b2Domain = req.cookies['domain'];
+
+    // TODO: Throw error here to browser if there is no cookies to use
+
+    // check the whitelist
+    if (!inWhitelist(urlPMService)) {
+        let whitelistErr = "Host is not whitelisted: " + urlPMService;
+        let logObject = {};
+        logObject.request_headers = req.headers;
+        logObject.request_body = req.body;
+        logObject.errorMsg = whitelistErr;
+        logger.error(logObject, 'Request to non-whitelisted host');
+        res.end(whitelistErr);
+        return;
+    }
+
     // decode SAML authentication document
     idpList[service].sp.parseLoginResponse(idpList[service].idp, 'post', req)
     .then(parseResult => {
         // TODO: Do side-channel request to start session with PM cell and return Session ID
-        userID = parseResult.extract.nameID;
+        userID = parseResult.extract[systemConfiguration.SAML.username.fromSAML];
         logline.push(" START_SESSION FOR " + userID);
-        return new Promise((resolve, reject) => {
-            // get the user identifier to be logged in
-            const requestData = Object.assign({method: "post", maxRedirects: 0}, systemConfiguration.i2b2SessionRequest);
-            if (requestData.data === undefined) requestData.data = {};
-            requestData.data.username = userID;
-            requestData.data.clientIP = client_ip;
 
-            // create a session key via protected API request
-            logline.push(" VIA " + requestData.url);
-            // handle self-signed SSL
-            if (systemConfiguration.proxyToSelfSignedSSL) {
-                // Insanely insecure hack to accept self-signed SSL Certificates (if configured)
-                process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-            } else {
-                process.env.NODE_TLS_REJECT_UNAUTHORIZED = "1";
-            }
-            // make request
-            axios.request(requestData).then((response) => {
-                if (response.status !== 200) {
-                    logline.push(" Response=" + response.status + " [ERROR]");
-                    console.log(logline.join(''));
-                    reject('Server Failed to Generate SessionID');
-                } else {
-                    logline.push(" [OK]");
-                    resolve(response.data.session);
+        // get the session from the SAML Assersion
+        session_id = parseResult.extract?.sessionIndex.sessionIndex;
+        // should we generate our own session identifier?
+        if (systemConfiguration.SAML?.session.autogenerate) {
+            session_id = Math.random().toString(36).substring(2);
+            session_id = session_id + Math.random().toString(36).substring(2);
+            session_id = session_id + Math.random().toString(36).substring(2);
+            session_id = session_id + Math.random().toString(36).substring(2);
+        } else {
+            // get the Shibboleth session identifier if configured
+            try {
+                // only if found (prevents "undefined"s)
+                if (parseResult.extract[systemConfiguration.SAML.session.fromSAML]) {
+                    session_id = parseResult.extract[systemConfiguration.SAML.session.fromSAML];
                 }
-            }).catch((error)=>{
-                logline.push(" [HTTP FAILED]");
-                reject(error.message);
-            });
-        });
+            } catch(e) {}
+        }
+
+        let promiseGenerator;
+        switch(String(systemConfiguration.SAML?.type).toUpperCase()) {
+            case "I2B2":
+                promiseGenerator = require('./saml-session-i2b2.js');
+                break;
+            case "CQ2":
+                promiseGenerator = require('./saml-session-CQ2.js');
+                break;
+            default:
+                logline.push(" [CONFIG ERROR] Invalid SAML.type");
+                throw new Error("SAML.type is incorrect or not defined");
+                break;
+        }
+        return promiseGenerator(urlPMService, i2b2Domain, userID, session_id, client_ip, logline);
     }).then(sessionId => {
         let htmlResponse = `<html><body>
         <script type="text/javascript">window.opener.i2b2.PM.ctrlr.SamlLogin("${userID}", "${sessionId}");</script>
