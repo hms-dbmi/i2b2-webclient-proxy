@@ -228,8 +228,10 @@ serviceProxy.use(function(req, res, next) {
             try {
                 const doc_str = String(Buffer.concat(body));
                 const xml = new dom().parseFromString(doc_str);
-                let domain = xpath.select("//security/domain/text()", xml)[0].toString();
-                let usrname = xpath.select("//security/username/text()", xml)[0].toString();
+                let domain = xpath.select("//security/domain/text()", xml)[0];
+                if (domain) domain = domain.toString();
+                let usrname = xpath.select("//security/username/text()", xml)[0];
+                if (usrname) usrname = usrname.toString();
                 // log credentials
                 logObject.credentials = {
                     domain: domain,
