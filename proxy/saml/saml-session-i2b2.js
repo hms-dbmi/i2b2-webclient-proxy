@@ -1,4 +1,7 @@
 const axios = require("axios");
+const xpath = require("xpath");
+const { DOMParser, XMLSerializer } = require("@xmldom/xmldom");
+
 const generateMessage = function(domain, user, password) {
     let offset = 1000000;
     let msgNum = String(Math.random() * (Number.MAX_SAFE_INTEGER - offset) + offset);
@@ -39,10 +42,10 @@ const getAuthentication = function(url, domain, userID, session_id, client_ip, l
 
         let msgBody = generateMessage(domain, userID, session_id);
         let requestData = {
-            "url": url,
+            "url": url + 'getServices',
             "method": "post",
             "maxRedirects": 0,
-            "timeout": 5000,
+            "timeout": 60000, // 60 second HTTP timeout
             "headers": {
                 "content-type": 'application/xml'
             },
@@ -69,8 +72,10 @@ const getAuthentication = function(url, domain, userID, session_id, client_ip, l
                 reject('Server Failed to Generate SessionID');
             } else {
                 logging_array.push(" [OK]");
-                console.dir(response);
-                resolve(response.data.session);
+                let doc = new DOMParser().parseFromString(response.data, 'text/xml');
+                let passNodes = xpath.select("//password/text()", doc);
+                let passVal = new XMLSerializer().serializeToString(passNodes[0]);
+                resolve(passVal);
             }
         }).catch((error) => {
             logging_array.push(" [HTTP FAILED]");
