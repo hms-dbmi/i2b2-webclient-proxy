@@ -71,17 +71,23 @@ const getAuthentication = function(url, domain, userID, session_id, client_ip, l
                 console.log(logging_array.join(''));
                 reject('Server Failed to Generate SessionID');
             } else {
-                logging_array.push(" [OK]");
                 let doc = new DOMParser().parseFromString(response.data, 'text/xml');
-                let passNodes = xpath.select("//password/text()", doc);
-                let passVal = new XMLSerializer().serializeToString(passNodes[0]);
-                resolve(passVal);
+                let errorMsgs = xpath.select("//status[@type='ERROR']/text()", doc);
+                if (errorMsgs.length > 0) {
+                    logging_array.push(" [I2B2 Error]");
+                    let errorMsg = new XMLSerializer().serializeToString(errorMsgs[0]);
+                    reject(errorMsg);
+                } else {
+                    logging_array.push(" [OK]");
+                    let passNodes = xpath.select("//password/text()", doc);
+                    let passVal = new XMLSerializer().serializeToString(passNodes[0]);
+                    resolve(passVal);
+                }
             }
         }).catch((error) => {
             logging_array.push(" [HTTP FAILED]");
             reject(error.message);
         });
-
     });
 };
 
