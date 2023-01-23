@@ -11,7 +11,7 @@ const xpath = require('xpath');
 
 // === Do not proxy these headers from the browser to the i2b2 server ===
 // Prevents security issues with SAML Authentication
-const ignoreHeaders = [
+let ignoreHeaders = [
     "X-eduPersonPrincipalName",
     "X-Shib-Session-ID"
 ];
@@ -141,8 +141,14 @@ serviceProxy.disable('x-powered-by');
 serviceProxy.use(require(path.join(baseDir, "proxy", "config-files.js")));
 
 // use SAML if configured
-if (systemConfiguration.useSAML) {
-    let moduleFile = path.join(baseDir, "proxy", "saml.js");
+if (systemConfiguration.SAML?.active) {
+    // add the headers to the exclusion list
+    ignoreHeaders.push(systemConfiguration.SAML?.username.toServer);
+    ignoreHeaders.push(systemConfiguration.SAML?.session.toServer);
+    ignoreHeaders = ignoreHeaders.filter(entry => !!entry);
+
+    // load the SAML module
+    let moduleFile = path.join(baseDir, "proxy", "saml", "saml.js");
     try {
         serviceProxy.use("/saml", require(moduleFile));
         logger.warn({saml: {

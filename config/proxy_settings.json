@@ -1,9 +1,21 @@
 {
   "proxyUrl": "/~proxy",
   "maxBodySize": 10000000,
-  "proxyToSelfSignedSSL": false,
   "useCORS": false,
-  "useSAML": false,
+  "SAML": {
+    "active": true,
+    "type": "I2B2",
+    "username": {
+      "fromSAML": "nameID",
+      "toServer": "X-eduPersonPrincipalName"
+    },
+    "session": {
+      "autogenerate": true,
+      "fromSAML": false,
+      "toServer": "X-Shib-Session-ID"
+    }
+  },
+  "proxyToSelfSignedSSL": false,
   "redirection": {
     "port": 80
   },
