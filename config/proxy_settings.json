@@ -13,5 +13,8 @@
     "httpsCert": "server.cert",
     "httpsKey": "server.key",
     "httpsPassphrase": ""
+  },
+  "logging": {
+    "transport": { "target": "pino-pretty" }
   }
 }
