@@ -1,4 +1,5 @@
 {
+  "hostname": "localhost",
   "proxyUrl": "/~proxy",
   "maxBodySize": 10000000,
   "proxyToSelfSignedSSL": true,
