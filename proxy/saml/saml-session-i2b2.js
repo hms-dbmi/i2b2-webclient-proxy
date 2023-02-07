@@ -37,7 +37,7 @@ const generateMessage = function(domain, user, password) {
     `;
 };
 
-const getAuthentication = function(url, domain, userID, session_id, client_ip, logging_array) {
+const getAuthentication = function(url, domain, userID, session_id, client_ip, logging_object) {
     return new Promise((resolve, reject) => {
 
         let msgBody = generateMessage(domain, userID, session_id);
@@ -58,33 +58,27 @@ const getAuthentication = function(url, domain, userID, session_id, client_ip, l
 
         // make request
         axios.request(requestData).then((response) => {
+            logging_object.response_status = response.status;
             if (response.status !== 200) {
-                logging_array.push(" Response=" + response.status + " [ERROR]");
-                console.log(logging_array.join(''));
                 reject('Server Failed to Generate SessionID');
             } else {
                 let doc = new DOMParser().parseFromString(response.data, 'text/xml');
                 let errorMsgs = xpath.select("//status[@type='ERROR']/text()", doc);
                 if (errorMsgs.length > 0) {
-                    logging_array.push(" [I2B2 Error]");
                     let errorMsg = new XMLSerializer().serializeToString(errorMsgs[0]);
+                    logging_object.i2b2_error = errorMsg;
                     reject(errorMsg);
                 } else {
-                    logging_array.push(" [OK]");
                     let passNodes = xpath.select("//password/text()", doc);
                     let passVal = new XMLSerializer().serializeToString(passNodes[0]);
                     resolve(passVal);
                 }
             }
         }).catch((error) => {
-            logging_array.push(" [HTTP FAILED]");
+            logging_object.response_status = "[HTTP FAILED]";
             reject(error.message);
         });
     });
 };
 
-
 module.exports = getAuthentication;
-
-
-

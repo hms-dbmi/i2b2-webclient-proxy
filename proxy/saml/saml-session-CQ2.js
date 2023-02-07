@@ -13,7 +13,7 @@ const instancesOfCQ2 = {
     }
 };
 
-const getAuthentication = function(url, domain, userID, session_id, client_ip, logging_array) {
+const getAuthentication = function(url, domain, userID, session_id, client_ip, logging_object) {
     return new Promise((resolve, reject) => {
         const targetCQ2 = instancesOfCQ2[url];
         if (!targetCQ2) reject("Don't have session initialization data");
@@ -30,12 +30,10 @@ const getAuthentication = function(url, domain, userID, session_id, client_ip, l
 
         // make request
         axios.request(requestData).then((response) => {
+            logging_object.response_status = response.status;
             if (response.status !== 200) {
-                logging_array.push(" Response=" + response.status + " [ERROR]");
-                console.log(logging_array.join(''));
                 reject('Server Failed to Generate SessionID');
             } else {
-                logging_array.push(" [OK]");
                 resolve(response.data.session);
             }
         }).catch((error) => {
