@@ -113,6 +113,12 @@ router.post('/acs/:service', bodyParser.urlencoded({ extended: false }), (req, r
     let i2b2Domain = req.cookies['domain'];
 
     // TODO: Throw error here to browser if there is no cookies to use
+    if ([urlPMService, i2b2Domain].includes(undefined)) {
+        res.status(408);
+        res.setHeader('content-type', 'text/plain');
+        res.end("Cookie expired! Try login again.");
+        return;
+    }
 
     // check the whitelist
     if (!inWhitelist(urlPMService)) {
