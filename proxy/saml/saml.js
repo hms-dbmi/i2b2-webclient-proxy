@@ -116,11 +116,10 @@ router.post('/acs/:service', bodyParser.urlencoded({ extended: false }), (req, r
 
     // check the whitelist
     if (!inWhitelist(urlPMService)) {
-        let logObject = {};
-        logObject.request_headers = req.headers;
-        logObject.request_body = req.body;
-        logObject.errorMsg = "Host is not whitelisted: " + urlPMService;
-        logger.error(logObject, 'Request to non-whitelisted host');
+        logline.request_headers = req.headers;
+        logline.request_body = req.body;
+        logline.errorMsg = "Host is not whitelisted: " + urlPMService;
+        logger.error(logline, 'Request to non-whitelisted host');
         res.status(403);
         res.setHeader('content-type', 'text/plain');
         res.end("Host is not whitelisted: " + encodeURIComponent(urlPMService));
