@@ -164,9 +164,6 @@ router.post('/acs/:service', bodyParser.urlencoded({ extended: false }), (req, r
             case "I2B2":
                 promiseGenerator = require('./saml-session-i2b2.js');
                 break;
-            case "CQ2":
-                promiseGenerator = require('./saml-session-CQ2.js');
-                break;
             default:
                 logger.error(logline, "[CONFIG ERROR] Invalid SAML.type");
                 throw new Error("SAML.type is incorrect or not defined");
