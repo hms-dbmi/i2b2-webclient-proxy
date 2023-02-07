@@ -97,19 +97,13 @@ if (systemConfiguration.proxyToSelfSignedSSL) {
 // ======================================================== //
 if (systemConfiguration.redirection !== undefined) {
     const functDoRedirect = function(req, res) {
-        let hostname = req.headers.host;
-        if (!hostname) {
-            logger.error((new Error("Invalid HTTP request")), 'The proxy server received a non-request connection from: ' + req.ip);
-            res.sendStatus(400);
-            return false;
-        }
-        hostname = hostname.split(':')[0];
+        // make sure we are redirecting to our host
         if ((systemConfiguration.proxy.protocol === "https" && systemConfiguration.proxy.port === 443) ||
             (systemConfiguration.proxy.protocol === "http" && systemConfiguration.proxy.port === 80)) 
         {
-            res.redirect(systemConfiguration.proxy.protocol + '://' + hostname + req.url);
+            res.redirect(systemConfiguration.proxy.protocol + '://' + systemConfiguration.hostname + req.url);
         } else {
-            res.redirect(systemConfiguration.proxy.protocol + '://' + hostname + ':' + systemConfiguration.proxy.port + req.url);
+            res.redirect(systemConfiguration.proxy.protocol + '://' + systemConfiguration.hostname + ':' + systemConfiguration.proxy.port + req.url);
         }
     };
     const serviceRedirect = express();
@@ -122,7 +116,7 @@ if (systemConfiguration.redirection !== undefined) {
     httpServer.listen(redirPort, () => {
         let msg = 'HTTP Redirect Service running on port ' + redirPort;
         logger.warn({"redirection": {
-            "from": 'http:'+redirPort,
+            "from": 'http:' + redirPort,
             "to": systemConfiguration.proxy.protocol+':'+systemConfiguration.proxy.port
             }}, msg);
     });
