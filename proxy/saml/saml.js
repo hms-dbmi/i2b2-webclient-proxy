@@ -1,4 +1,3 @@
-// This is /routes/sso.js
 const express = require('express');
 const bodyParser = require('body-parser');
 const router = express.Router();
@@ -56,6 +55,9 @@ router.get('/metadata/:service', (req, res) => {
     res.header('Content-Type','text/xml').send(idpList[service].sp.getMetadata());
 });
 
+
+// List of SAML authenticators
+// ============================================
 router.get('/idp_list.json', (req, res) => res.json(Object.keys(idpList)));
 
 
@@ -66,23 +68,21 @@ router.get('/redirect/:service', (req, res) => {
         req.connection.remoteAddress ||
         req.socket.remoteAddress ||
         req.connection.socket.remoteAddress;
-    // set the browser cookie as a server cookie so it is saved until the redirect back
-//    res.cookie('url', req.cookies['url'], { maxAge:3000000 } );
 
-    let logline = [];
-    logline.push((new Date()).toISOString() + " | ");
-    logline.push(client_ip + " --[SAML Redirect]--> ");
     const service = req.params.service.toLowerCase();
-    logline.push('(' + service + ')');
+    let logline = {
+        "date": (new Date()).toISOString(),
+        "client_ip": client_ip,
+        "SAML": "redirect",
+        "service": service,
+    };
     if (!func_LoadServiceDef(service, req)) {
-        logline.push(" NOT_CONFIGURED! [ERROR]");
-        console.log(logline.join(''));
+        logger.error(logline, "SERVICE NOT_CONFIGURED!");
         res.sendStatus(404);
         return;
     }
     const { id, context } = idpList[service].sp.createLoginRequest(idpList[service].idp, 'redirect');
-    logline.push(` ${context.split('?')[0]} [OK]`);
-    console.log(logline.join(''));
+    logger.info(logline,`${context.split('?')[0]} [OK]`);
     return res.redirect(context);
 });
 
@@ -95,14 +95,15 @@ router.post('/acs/:service', bodyParser.urlencoded({ extended: false }), (req, r
         req.connection.remoteAddress ||
         req.socket.remoteAddress ||
         req.connection.socket.remoteAddress;
-    let logline = [];
-    logline.push((new Date()).toISOString() + " | ");
-    logline.push(client_ip + " --[SAML ACS]--> ");
     const service = req.params.service.toLowerCase();
-    logline.push('(' + service + ')');
+    let logline = {
+        "date": (new Date()).toISOString(),
+        "client_ip": client_ip,
+        "SAML": "acs",
+        "service": service,
+    };
     if (!func_LoadServiceDef(service, req)) {
-        logline.push(" NOT_CONFIGURED! [ERROR]");
-        console.log(logline.join(''));
+        logger.error(logline, "SERVICE NOT_CONFIGURED!");
         res.sendStatus(404);
         return;
     }
@@ -131,7 +132,7 @@ router.post('/acs/:service', bodyParser.urlencoded({ extended: false }), (req, r
     .then(parseResult => {
         // TODO: Do side-channel request to start session with PM cell and return Session ID
         userID = parseResult.extract[systemConfiguration.SAML.username.fromSAML];
-        logline.push(" START_SESSION FOR " + userID);
+        logline.userID = userID;
 
         // get the session from the SAML Assersion
         session_id = parseResult.extract?.sessionIndex.sessionIndex;
@@ -152,7 +153,9 @@ router.post('/acs/:service', bodyParser.urlencoded({ extended: false }), (req, r
         }
 
         let promiseGenerator;
-        switch(String(systemConfiguration.SAML?.type).toUpperCase()) {
+        const SamlEngine = String(systemConfiguration.SAML?.type).toUpperCase();
+        logline.SAML_engine = SamlEngine;
+        switch(SamlEngine) {
             case "I2B2":
                 promiseGenerator = require('./saml-session-i2b2.js');
                 break;
@@ -160,7 +163,7 @@ router.post('/acs/:service', bodyParser.urlencoded({ extended: false }), (req, r
                 promiseGenerator = require('./saml-session-CQ2.js');
                 break;
             default:
-                logline.push(" [CONFIG ERROR] Invalid SAML.type");
+                logger.error(logline, "[CONFIG ERROR] Invalid SAML.type");
                 throw new Error("SAML.type is incorrect or not defined");
                 break;
         }
@@ -169,11 +172,11 @@ router.post('/acs/:service', bodyParser.urlencoded({ extended: false }), (req, r
         let htmlResponse = `<html><body>
         <script type="text/javascript">window.opener.i2b2.PM.ctrlr.SamlLogin("${userID}", "${sessionId}");</script>
         </body></html>`;
-        console.log(logline.join(''));
+        logger.info(logline, "SAML Authenticated");
         res.send(htmlResponse);
     }).catch((e) => {
-        logline.push(" [PARSING FAILED] [ERROR] " + e);
-        console.log(logline.join(''));
+        logline.error = e;
+        logger.info(logline, "[PARSING FAILED] [ERROR]");
         res.sendStatus(401);
     });
 });
