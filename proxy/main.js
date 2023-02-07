@@ -208,11 +208,11 @@ serviceProxy.use(function(req, res, next) {
             body_len += data.length;
             if (body_len > systemConfiguration.maxBodySize) {
                 // FLOOD ATTACK OR FAULTY CLIENT, NUKE REQUEST
-                req.connection.destroy();
-                // logging output
                 logObject.errorMsg = "EXCESSIVE UPLOAD SIZE";
                 logObject.body_len = body_len;
                 logger.error(logObject, "Proxy request body was larger than " + body_len + " bytes");
+                // disconnect client
+                req.connection.destroy();
             }
         });
         req.on('end', function() {
