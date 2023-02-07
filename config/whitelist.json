@@ -1,10 +1,12 @@
 {
   "http": [
     "localhost",
-    "services.i2b2.org"
+    "services.i2b2.org",
+    "weberdemo.hms.harvard.edu"
   ],
   "https": [
     "localhost",
-    "services.i2b2.org"
+    "services.i2b2.org",
+	"weberdemo.hms.harvard.edu"
   ]
 }
