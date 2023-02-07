@@ -56,14 +56,6 @@ const getAuthentication = function(url, domain, userID, session_id, client_ip, l
         requestData.headers[systemConfiguration.SAML.username.toServer] = userID;
         requestData.headers[systemConfiguration.SAML.session.toServer] = session_id;
 
-        // handle self-signed SSL
-        if (systemConfiguration.proxyToSelfSignedSSL) {
-            // Insanely insecure hack to accept self-signed SSL Certificates (if configured)
-            process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-        } else {
-            process.env.NODE_TLS_REJECT_UNAUTHORIZED = "1";
-        }
-
         // make request
         axios.request(requestData).then((response) => {
             if (response.status !== 200) {
