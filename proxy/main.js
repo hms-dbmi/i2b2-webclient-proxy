@@ -306,7 +306,7 @@ serviceProxy.use(function(req, res, next) {
                     proxy_res.on('error', (e) => {
                         let responseMsg = Buffer.concat(i2b2_result);
                         logObject.error = e;
-                        logObject.errorMsg = "An error occured during the proxy request";
+                        logObject.errorMsg = "An error occurred during the proxy request";
                         logObject.response = responseMsg;
                         logObject.response_status = proxy_res.statusCode;
                         logObject.request_obj = proxy_res;
@@ -333,7 +333,7 @@ serviceProxy.use(function(req, res, next) {
                 }
                 proxy_request.on('error', (e) => {
                     let response = String(Buffer.concat(i2b2_result));
-                    logObject.errorMsg = msg;
+                    logObject.errorMsg = "An error occurred during the proxy request";
                     logObject.error = e;
                     logObject.response = response;
                     logObject.request_obj = proxy_request;
