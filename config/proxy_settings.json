@@ -32,13 +32,6 @@
     "httpsKey": "server.key",
     "httpsPassphrase": ""
   },
-  "i2b2SessionRequest": {
-    "url": "https://localhost/StartSession.php",
-    "timeout": 5000,
-    "data": {
-      "secret": "MY-SHARED-SECRET"
-    }
-  },
   "gitManager": {
     "active": true,
     "managerUrl": "/~manager",
