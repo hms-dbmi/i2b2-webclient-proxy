@@ -15,11 +15,6 @@
       "autogenerate": true,
       "fromSAML": false,
       "toServer": "X-Shib-Session-ID"
-    },
-    "secret": {
-      "enable": false,
-      "secret": "This_is_our_shared_secret!",
-      "toServer": "X-i2b2-Security-Hash"
     }
   },
   "redirection": {
