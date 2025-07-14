@@ -17,12 +17,13 @@ module.exports = {
             getMetadata: function() { return 'none'; },
             createLoginRequest: function() {
                 return {
-                    "id": "something?",
-                    "context": "http://dev.commonjava.hms.harvard.edu/service/url"
+                    "id": "HarvardKey",
+                    "context": "https://commonjava.hms.harvard.edu"
                 };
             },
-            parseLoginResponse: function(idp, method, request_info) {
-                return Promise((accept, fail) => {
+            parseLoginResponse: function(idp, method, req) {
+                const { eppn, email, firstName, lastName, sessionId, displayName } = req.body;
+                return new Promise((accept, fail) => {
                     // 1) validate session with commonjava
                     if (!ok) {
                         fail(message);
@@ -47,9 +48,9 @@ module.exports = {
                     accept({
                         "extract": {
                             // here is a key/value mapping of various session data
-                            "nameID": user_eppn,
+                            "nameID": eppn,
                             "sessionIndex": {
-                                "sessionIndex": commonjava_session
+                                "sessionIndex": sessionId
                             }
                         }
                     })
