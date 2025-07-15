@@ -1,6 +1,8 @@
 const baseDir = __dirname + '/config/saml/';
 const fs = require('fs');
 const path = require('path');
+const fetch = require('node-fetch');
+const commonJavaUrl = 'https://commonjava.catalyst.harvard.edu';
 
 // handle passwords to access the private keys
 let keyPasswords = {sigPrivateKey: '', encPrivateKey: ''};
@@ -18,42 +20,64 @@ module.exports = {
             createLoginRequest: function() {
                 return {
                     "id": "HarvardKey",
-                    "context": "https://commonjava.hms.harvard.edu"
+                    "context": commonJavaUrl
                 };
             },
-            parseLoginResponse: function(idp, method, req) {
-                const { eppn, email, firstName, lastName, sessionId, displayName } = req.body;
-                return new Promise((accept, fail) => {
-                    // 1) validate session with commonjava
-                    if (!ok) {
-                        fail(message);
-                        return;
-                    }
+            parseLoginResponse: function(idp, method, request_info) {
+                return new Promise(async (accept, fail) => {
+                    try {
+                        const sessionId = request_info.sessionId;
+                        const eppn = request_info.eppn;
 
-                    // 2) see if user exists on i2b2
-                    // use urlPMService & i2b2Domain variables here
-                    if (!ok) {
-                        fail(message);
-                        return;
-                    }
+                        // 1) Validate session with commonjava
+                        const response = await fetch(commonJavaUrl+'/api/isLoggedIn', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Cookie': `JSESSIONID=${sessionId}`
+                            },
+                            credentials: 'include'
+                        });
 
-                    // 3) create and configure user (only if needed)
-                    // use urlPMService & i2b2Domain variables here
-                    if (!needed_and_not_ok) {
-                        fail(message);
-                        return;
-                    }
-
-                    // 4) return following data to enable rest of SAML login chain
-                    accept({
-                        "extract": {
-                            // here is a key/value mapping of various session data
-                            "nameID": eppn,
-                            "sessionIndex": {
-                                "sessionIndex": sessionId
-                            }
+                        if (!response.ok) {
+                            fail(`Session validation failed with status ${response.status}`);
+                            return;
                         }
-                    })
+
+                        const result = await response.json();
+                        if (!result.loggedIn || result.user?.eppn !== eppn) {
+                            fail("Session is not valid or eppn mismatch.");
+                            return;
+                        }
+
+                        // 2) see if user exists on i2b2
+                        // use urlPMService & i2b2Domain variables here
+                        if (!ok) {
+                            fail(message);
+                            return;
+                        }
+
+                        // 3) create and configure user (only if needed)
+                        // use urlPMService & i2b2Domain variables here
+                        if (!needed_and_not_ok) {
+                            fail(message);
+                            return;
+                        }
+
+                        // 4) return following data to enable rest of SAML login chain
+                        accept({
+                            "extract": {
+                                // here is a key/value mapping of various session data
+                                "nameID": eppn,
+                                "sessionIndex": {
+                                    "sessionIndex": sessionId
+                                }
+                            }
+                        })
+                    } catch (err) {
+                        console.error("Error validating session:", err);
+                        fail("Internal error during session validation");
+                    }
                 });
             }
         };
