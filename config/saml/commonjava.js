@@ -6,25 +6,33 @@ const {v4: uuidv4} = require('uuid');
 const moment = require('moment');
 const {parseStringPromise} = require('xml2js');
 
-const commonJavaUrl = 'https://commonjava.catalyst.harvard.edu';
-
-// handle passwords to access the private keys
-let keyPasswords = {sigPrivateKey: '', encPrivateKey: ''};
-if (process.env.OKTA_SIG_PRIVKEY_PASS) keyPasswords.sigPrivateKey = process.env.OKTA_SIG_PRIVKEY_PASS;
-if (process.env.OKTA_ENC_PRIVKEY_PASS) keyPasswords.encPrivateKey = process.env.OKTA_ENC_PRIVKEY_PASS;
+// handle loading configuration
+const configs = require(baseDir + 'commonjava.json');
 
 module.exports = {
     sp: (req) => {
         const samlURL = req.protocol + '://' + req.get('host') + '/saml/';
-        const urlPMService = req.cookies['url'];
+        const urlPMService = req.cookies['url']; // TODO: REQUIRED TO run this URL through our whitelist via inWhitelist()
         const i2b2Domain = req.cookies['domain'];
+
+        let ConfigSettings;
+        try {
+            ConfigSettings = configs.filter((config) => config.PMCellUrl === urlPMService && config.domain === i2b2Domain)[0];
+        } catch(e) {
+            return fail(`Did not find config in "commonjava.json" for [PMUrl: ${urlPMService}, Domain: ${i2b2Domain}]`);
+        }
+
+        const client_ip = req.headers['x-forwarded-for'] ||
+            req.connection.remoteAddress ||
+            req.socket.remoteAddress ||
+            req.connection.socket.remoteAddress;
 
         return {
             getMetadata: function() { return 'none'; },
             createLoginRequest: function() {
                 return {
                     "id": "HarvardKey",
-                    "context": commonJavaUrl
+                    "context": ConfigSettings.commonjavaUrl
                 };
             },
             parseLoginResponse: function(idp, method, request_info) {
@@ -39,8 +47,7 @@ module.exports = {
                         const userName = eppn.split('@')[0];
                         const fullName = displayName || userName;
                         const email = userEmail || `${userName}@harvard.edu`;
-                        const domain = i2b2Domain;
-                        const projectId = 'Demo';
+                        const i2b2RedirectUrl = ConfigSettings.PMCellUrl + 'getServices';
 
                         // Log SAML response for debugging
                         console.log(`SAML Response: eppn=${eppn}, sessionId=${sessionId}, displayName=${displayName}`);
@@ -66,9 +73,9 @@ module.exports = {
                         const now = moment().format();
                         const logXml = (label, xml) => console.log(`\n[XML - ${label}]\n${xml}\n`);
 
-                        const generateMessageHeader = (token) => `
+                        const generateMessageHeader = () => `
                             <message_header>
-                                <proxy><redirect_url>${urlPMService}getServices</redirect_url></proxy>
+                                <proxy><redirect_url>${i2b2RedirectUrl}</redirect_url></proxy>
                                 <i2b2_version_compatible>1.1</i2b2_version_compatible>
                                 <hl7_version_compatible>2.4</hl7_version_compatible>
                                 <sending_application><application_name>i2b2 Project Management</application_name><application_version>1.6</application_version></sending_application>
@@ -76,37 +83,32 @@ module.exports = {
                                 <receiving_application><application_name>Project Management Cell</application_name><application_version>1.6</application_version></receiving_application>
                                 <receiving_facility><facility_name>i2b2 Hive</facility_name></receiving_facility>
                                 <datetime_of_message>${now}</datetime_of_message>
-                                <security><domain>${domain}</domain><username>i2b2</username><password${token.includes('SessionKey') ? ' is_token="true" token_ms_timeout="1800000"' : ''}>${token}</password></security>
+                                <security><domain>${ConfigSettings.domain}</domain><username>${ConfigSettings.adminUser}</username><password>${ConfigSettings.adminPass}</password></security>
                                 <message_control_id><message_num>${uuidv4()}</message_num><instance_num>0</instance_num></message_control_id>
                                 <processing_id><processing_id>P</processing_id><processing_mode>I</processing_mode></processing_id>
                                 <accept_acknowledgement_type>AL</accept_acknowledgement_type>
                                 <application_acknowledgement_type>AL</application_acknowledgement_type>
                                 <country_code>US</country_code>
-                                <project_id>${projectId}</project_id>
+                                <project_id></project_id>
                             </message_header>`;
 
                         const wrapXml = (header, body) => `
+                            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
                             <i2b2:request xmlns:i2b2="http://www.i2b2.org/xsd/hive/msg/1.1/" xmlns:pm="http://www.i2b2.org/xsd/cell/pm/1.1/">
                                 ${header}
                                 <request_header><result_waittime_ms>180000</result_waittime_ms></request_header>
                                 <message_body>${body}</message_body>
                             </i2b2:request>`;
 
-                        const wrapWithSoapEnvelope = (i2b2Xml) => `
-                            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
-                                              xmlns:i2b2="http://www.i2b2.org/xsd/hive/msg/1.1/"
-                                              xmlns:pm="http://www.i2b2.org/xsd/cell/pm/1.1/">
-                                <soapenv:Header/>
-                                <soapenv:Body>
-                                    ${i2b2Xml}
-                                </soapenv:Body>
-                            </soapenv:Envelope>`;
-
                         const postXml = async (label, xmlBody) => {
                             logXml(label, xmlBody);
-                            const res = await fetch(urlPMService, {
+                            const res = await fetch(i2b2RedirectUrl, {
                                 method: 'POST',
-                                headers: {'Content-Type': 'application/xml', 'SOAPAction': ''},
+                                headers: {
+                                    'Content-Type': 'text/xml',
+                                    'forwarded': `for=${client_ip}`,
+                                    'x-forwarded-for': client_ip
+                                },
                                 body: xmlBody
                             });
                             const responseText = await res.text();
@@ -122,31 +124,23 @@ module.exports = {
                             }
                         };
 
-                        // Step 1: Login
-                        const loginXml = wrapXml(generateMessageHeader('demouser'), `
-                            <pm:get_user_configuration>
-                                <project>${projectId}</project>
-                            </pm:get_user_configuration>`);
-
-                        logXml("LOGIN REQUEST", loginXml);
-                        const loginRes = await fetch(urlPMService, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/xml',
-                                'SOAPAction': 'http://www.i2b2.org/xsd/cell/pm/1.1/get_user_configuration' // You can also try just '""' or omit this entirely depending on endpoint config
-                            },
-                            body: loginXml
-                        });
-
-                        const loginText = await loginRes.text();
-                        logXml("LOGIN RESPONSE", loginText);
-                        const loginParsed = await parseStringPromise(loginText);
-                        const sessionKey = loginParsed?.['i2b2:response']?.message_body?.[0]?.configure?.[0]?.user?.[0]?.password?.[0];
-                        if (!sessionKey) return fail("Session key not found in login response.");
-                        const token = `SessionKey:${sessionKey}`;
-
-                        // Step 2: Provision user
-                        await postXml('CREATE USER', wrapXml(generateMessageHeader(token), `
+                        // Step 1: Login with user's account (not admin) via i2b2's SAML module headers
+                        const promiseSessionGenerator = require(__dirname + 'proxy/saml/saml-session-i2b2.js');
+                        promiseSessionGenerator(ConfigSettings.PMCellUrl, ConfigSettings.domain, userName, sessionId, client_ip).then((i2b2SessionKey) => {
+                            // Success response
+                            accept({
+                                "extract": {
+                                    // here is a key/value mapping of various session data
+                                    "nameID": eppn,
+                                    "sessionIndex": {
+                                        "sessionIndex": sessionId
+                                    }
+                                }
+                            })
+                        }).catch((e) => {
+                            // user (likely) does not exist....
+                            // Step 1: Provision user
+                            await postXml('CREATE USER', wrapXml(generateMessageHeader(), `
                             <pm:set_user>
                                 <user_name>${userName}</user_name>
                                 <full_name>${fullName}</full_name>
@@ -155,39 +149,41 @@ module.exports = {
                                 <password>password</password>
                             </pm:set_user>`));
 
-                        // Step 3: Assign USER role
-                        await postXml('ASSIGN USER ROLE', wrapXml(generateMessageHeader(token), `
+                            // Step 2: Assign USER role
+                            await postXml('ASSIGN USER ROLE', wrapXml(generateMessageHeader(), `
                             <pm:set_role>
                                 <user_name>${userName}</user_name>
                                 <role>USER</role>
-                                <project_id>${projectId}</project_id>
+                                <project_id>${ConfigSettings.projectId}</project_id>
                             </pm:set_role>`));
 
-                        // Step 4: Assign DATA_PROT role
-                        await postXml('ASSIGN DATA_PROT ROLE', wrapXml(generateMessageHeader(token), `
+                            // Step 3: Assign DATA_PROT role
+                            await postXml('ASSIGN DATA_PROT ROLE', wrapXml(generateMessageHeader(), `
                             <pm:set_role>
                                 <user_name>${userName}</user_name>
                                 <role>DATA_PROT</role>
-                                <project_id>${projectId}</project_id>
+                                <project_id>${ConfigSettings.projectId}</project_id>
                             </pm:set_role>`));
 
-                        // Step 5: Set authentication method to SAML
-                        await postXml('SET AUTH METHOD', wrapXml(generateMessageHeader(token), `
+                            // Step 4: Set authentication method to SAML
+                            await postXml('SET AUTH METHOD', wrapXml(generateMessageHeader(), `
                             <pm:set_user_param>
                                 <user_name>${userName}</user_name>
                                 <param datatype="T" name="authentication_method">SAML</param>
                             </pm:set_user_param>`));
 
-                        // Success response
-                        accept({
-                            "extract": {
-                                // here is a key/value mapping of various session data
-                                "nameID": eppn,
-                                "sessionIndex": {
-                                    "sessionIndex": sessionId
+                            // Success response
+                            accept({
+                                "extract": {
+                                    // here is a key/value mapping of various session data
+                                    "nameID": eppn,
+                                    "sessionIndex": {
+                                        "sessionIndex": sessionId
+                                    }
                                 }
-                            }
-                        })
+                            })
+                        });
+
                     } catch (err) {
                         console.error("Error validating session:", err);
                         fail("Internal error during session validation");

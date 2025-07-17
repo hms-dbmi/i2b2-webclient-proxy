@@ -1,0 +1,10 @@
+[
+  {
+    "PMCellUrl": "http://shrine-masscpr-dev-hub-i2b2.catalyst.harvard.edu:9090/i2b2/services/PMService/",
+    "domain": "shrine-masscpr-dev-hub",
+    "commonjavaUrl": "https://commonjava.catalyst.harvard.edu",
+    "adminUser": "i2b2",
+    "adminPass": "demouser",
+    "projectId" : "ACT"
+  }
+]
