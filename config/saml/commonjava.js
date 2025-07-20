@@ -1,4 +1,3 @@
-const baseDir = __dirname + '/config/saml/';
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
@@ -6,8 +5,7 @@ const {v4: uuidv4} = require('uuid');
 const moment = require('moment');
 const {parseStringPromise} = require('xml2js');
 
-// handle loading configuration
-const configs = require(baseDir + 'commonjava.json');
+const configs = require(path.join(__dirname, 'commonjava.json'));
 
 module.exports = {
     sp: (req) => {
@@ -19,7 +17,8 @@ module.exports = {
         try {
             ConfigSettings = configs.filter((config) => config.PMCellUrl === urlPMService && config.domain === i2b2Domain)[0];
         } catch(e) {
-            return fail(`Did not find config in "commonjava.json" for [PMUrl: ${urlPMService}, Domain: ${i2b2Domain}]`);
+            console.error(`Did not find config in "commonjava.json" for [PMUrl: ${urlPMService}, Domain: ${i2b2Domain}]`);
+            return;
         }
 
         const client_ip = req.headers['x-forwarded-for'] ||
@@ -53,7 +52,7 @@ module.exports = {
                         console.log(`SAML Response: eppn=${eppn}, sessionId=${sessionId}, displayName=${displayName}`);
 
                         // 1) Validate session with commonjava
-                        const response = await fetch(commonJavaUrl+'/api/isLoggedIn', {
+                        const response = await fetch(`${ConfigSettings.commonjavaUrl}/api/isLoggedIn`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -92,13 +91,12 @@ module.exports = {
                                 <project_id></project_id>
                             </message_header>`;
 
-                        const wrapXml = (header, body) => `
-                            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-                            <i2b2:request xmlns:i2b2="http://www.i2b2.org/xsd/hive/msg/1.1/" xmlns:pm="http://www.i2b2.org/xsd/cell/pm/1.1/">
-                                ${header}
-                                <request_header><result_waittime_ms>180000</result_waittime_ms></request_header>
-                                <message_body>${body}</message_body>
-                            </i2b2:request>`;
+                        const wrapXml = (header, body) => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<i2b2:request xmlns:i2b2="http://www.i2b2.org/xsd/hive/msg/1.1/" xmlns:pm="http://www.i2b2.org/xsd/cell/pm/1.1/">
+  ${header}
+  <request_header><result_waittime_ms>180000</result_waittime_ms></request_header>
+  <message_body>${body}</message_body>
+</i2b2:request>`;
 
                         const postXml = async (label, xmlBody) => {
                             logXml(label, xmlBody);
@@ -117,28 +115,35 @@ module.exports = {
                                 return fail(`${label} failed: HTTP ${res.status}`);
                             }
 
-                            const parsed = await parseStringPromise(responseText);
-                            const status = parsed?.['i2b2:response']?.message_body?.[0]?.['response_status']?.[0]?.['status']?.[0]?.['$']?.['type'];
+                            const parsed = await parseStringPromise(responseText, {
+                                tagNameProcessors: [require('xml2js').processors.stripPrefix],
+                                explicitArray: false
+                            });
+
+                            const status = parsed?.response?.response_header?.result_status?.status?.$.type;
+
+                            console.log("Status created with : " + status);
                             if (status !== 'DONE') {
                                 return fail(`${label} failed: status = ${status}`);
                             }
                         };
 
                         // Step 1: Login with user's account (not admin) via i2b2's SAML module headers
-                        const promiseSessionGenerator = require(__dirname + 'proxy/saml/saml-session-i2b2.js');
+                        const promiseSessionGenerator = require(path.join(__dirname, '..', '..', 'proxy', 'saml', 'saml-session-i2b2.js'));
                         promiseSessionGenerator(ConfigSettings.PMCellUrl, ConfigSettings.domain, userName, sessionId, client_ip).then((i2b2SessionKey) => {
                             // Success response
                             accept({
                                 "extract": {
                                     // here is a key/value mapping of various session data
-                                    "nameID": eppn,
+                                    "nameID": userName,
                                     "sessionIndex": {
                                         "sessionIndex": sessionId
                                     }
                                 }
                             })
-                        }).catch((e) => {
+                        }).catch(async (e) => {
                             // user (likely) does not exist....
+                            console.warn('User does not exist or failed session creation:', e);
                             // Step 1: Provision user
                             await postXml('CREATE USER', wrapXml(generateMessageHeader(), `
                             <pm:set_user>
@@ -176,7 +181,7 @@ module.exports = {
                             accept({
                                 "extract": {
                                     // here is a key/value mapping of various session data
-                                    "nameID": eppn,
+                                    "nameID": userName,
                                     "sessionIndex": {
                                         "sessionIndex": sessionId
                                     }
