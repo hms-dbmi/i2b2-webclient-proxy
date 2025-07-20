@@ -75,6 +75,7 @@ const getAuthentication = function(url, domain, userID, session_id, client_ip, l
                 }
             }
         }).catch((error) => {
+            if (!logging_object) logging_object = {}; // Ensure it's initialized
             logging_object.response_status = "[HTTP FAILED]";
             reject(error.message);
         });
