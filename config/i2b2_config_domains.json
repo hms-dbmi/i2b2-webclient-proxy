@@ -24,7 +24,7 @@
       "debug": false,
       "saml" : {
         "shibboleth": {
-          "redirect": "https://commonjava.catalyst.harvard.edu/api/sso?tier=prod&entity=aHR0cHM6Ly9sb2NhbGhvc3Q=",
+          "redirect": "https://commonjava.catalyst.harvard.edu/api/sso?tier=prod&entity=aHR0cHM6Ly9zaHJpbmUtbWFzc2Nwci1kZXYtaHViLWkyYjJ1aS5jYXRhbHlzdC5oYXJ2YXJkLmVkdS8=",
           "logout": "https://commonjava.catalyst.harvard.edu/api/logout"
         }
       }

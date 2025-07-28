@@ -135,7 +135,7 @@ module.exports = {
                             accept({
                                 "extract": {
                                     // here is a key/value mapping of various session data
-                                    "nameID": eppn,
+                                    "nameID": userName,
                                     "sessionIndex": {
                                         "sessionIndex": sessionId
                                     }
@@ -181,7 +181,7 @@ module.exports = {
                             accept({
                                 "extract": {
                                     // here is a key/value mapping of various session data
-                                    "nameID": eppn,
+                                    "nameID": userName,
                                     "sessionIndex": {
                                         "sessionIndex": sessionId
                                     }
