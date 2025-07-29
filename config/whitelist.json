@@ -1,15 +1,9 @@
 {
   "http": [
-    "localhost",
-    "services.i2b2.org",
-    "weberdemo.hms.harvard.edu",
     "shrine-masscpr-dev-hub-i2b2.catalyst.harvard.edu:9090",
     "commonjava.catalyst.harvard.edu"
   ],
   "https": [
-    "localhost",
-    "services.i2b2.org",
-    "weberdemo.hms.harvard.edu",
     "shrine-masscpr-dev-hub-i2b2.catalyst.harvard.edu:9090",
     "commonjava.catalyst.harvard.edu"
   ]

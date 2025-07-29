@@ -32,7 +32,7 @@
     "managerUrl": "/~manager",
     "password": "MY-TEAM-PASSWORD",
     "repo": "https://github.com/hms-dbmi/i2b2v2-webclient.git",
-    "headName": "master"
+    "headName": "MassCPR-DEPLOY"
   },
   "logging": {
     "transport": { "target": "pino-pretty" }
