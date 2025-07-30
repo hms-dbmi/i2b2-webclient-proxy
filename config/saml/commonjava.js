@@ -9,7 +9,6 @@ const configs = require(path.join(__dirname, 'commonjava.json'));
 
 module.exports = {
     sp: (req) => {
-        const samlURL = req.protocol + '://' + req.get('host') + '/saml/';
         const urlPMService = req.cookies['url']; // TODO: REQUIRED TO run this URL through our whitelist via inWhitelist()
         const i2b2Domain = req.cookies['domain'];
 
@@ -29,16 +28,19 @@ module.exports = {
         return {
             getMetadata: function() { return 'none'; },
             createLoginRequest: function() {
+//                const returnURL = req.protocol + '://' + req.get('host') + '/saml/acs/commonjava';
+                const returnURL = req.protocol + '://' + req.get('host');
+                const outgoingURL = ConfigSettings.commonjavaUrl + "/api/sso?tier=" + ConfigSettings.commonjavaTier + "&entity=" + Buffer.from(returnURL, 'utf8').toString('base64');
                 return {
                     "id": "HarvardKey",
-                    "context": ConfigSettings.commonjavaUrl
+                    "context": outgoingURL
                 };
             },
             parseLoginResponse: function(idp, method, request_info) {
                 return new Promise(async (accept, fail) => {
                     try {
                         // Validate SAML attributes
-                        const { eppn, sessionId, displayName, email: userEmail } = req.body;
+                        const { eppn, sessionId, displayName, email: userEmail } = request_info.body;
                         if (!eppn || !sessionId) {
                             return fail('Missing required SAML attributes: eppn and sessionId');
                         }
@@ -92,11 +94,11 @@ module.exports = {
                             </message_header>`;
 
                         const wrapXml = (header, body) => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<i2b2:request xmlns:i2b2="http://www.i2b2.org/xsd/hive/msg/1.1/" xmlns:pm="http://www.i2b2.org/xsd/cell/pm/1.1/">
-  ${header}
-  <request_header><result_waittime_ms>180000</result_waittime_ms></request_header>
-  <message_body>${body}</message_body>
-</i2b2:request>`;
+                                        <i2b2:request xmlns:i2b2="http://www.i2b2.org/xsd/hive/msg/1.1/" xmlns:pm="http://www.i2b2.org/xsd/cell/pm/1.1/">
+                                          ${header}
+                                          <request_header><result_waittime_ms>180000</result_waittime_ms></request_header>
+                                          <message_body>${body}</message_body>
+                                        </i2b2:request>`;
 
                         const postXml = async (label, xmlBody) => {
                             logXml(label, xmlBody);

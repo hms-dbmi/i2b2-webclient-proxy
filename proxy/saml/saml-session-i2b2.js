@@ -47,7 +47,7 @@ const getAuthentication = function(url, domain, userID, session_id, client_ip, l
             "maxRedirects": 0,
             "timeout": 60000, // 60 second HTTP timeout
             "headers": {
-                "content-type": 'application/xml'
+                'Content-Type': 'text/xml'
             },
             data: msgBody
         };
@@ -58,7 +58,7 @@ const getAuthentication = function(url, domain, userID, session_id, client_ip, l
 
         // make request
         axios.request(requestData).then((response) => {
-            logging_object.response_status = response.status;
+            if (typeof logging_object !== 'undefined') logging_object.response_status = response.status;
             if (response.status !== 200) {
                 reject('Server Failed to Generate SessionID');
             } else {
@@ -66,7 +66,7 @@ const getAuthentication = function(url, domain, userID, session_id, client_ip, l
                 let errorMsgs = xpath.select("//status[@type='ERROR']/text()", doc);
                 if (errorMsgs.length > 0) {
                     let errorMsg = new XMLSerializer().serializeToString(errorMsgs[0]);
-                    logging_object.i2b2_error = errorMsg;
+                    if (typeof logging_object !== 'undefined') logging_object.i2b2_error = errorMsg;
                     reject(errorMsg);
                 } else {
                     let passNodes = xpath.select("//password/text()", doc);
@@ -75,8 +75,7 @@ const getAuthentication = function(url, domain, userID, session_id, client_ip, l
                 }
             }
         }).catch((error) => {
-            if (!logging_object) logging_object = {}; // Ensure it's initialized
-            logging_object.response_status = "[HTTP FAILED]";
+            if (typeof logging_object !== 'undefined') logging_object.response_status = "[HTTP FAILED]";
             reject(error.message);
         });
     });
