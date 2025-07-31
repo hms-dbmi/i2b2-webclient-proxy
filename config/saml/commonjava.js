@@ -45,7 +45,8 @@ module.exports = {
                             return fail('Missing required SAML attributes: eppn and sessionId');
                         }
 
-                        const userName = eppn.split('@')[0];
+//                        const userName = eppn.split('@')[0];
+                        const userName = eppn;
                         const fullName = displayName || userName;
                         const email = userEmail || `${userName}@harvard.edu`;
                         const i2b2RedirectUrl = ConfigSettings.PMCellUrl + 'getServices';
