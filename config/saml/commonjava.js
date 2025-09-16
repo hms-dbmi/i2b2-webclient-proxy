@@ -166,10 +166,10 @@ module.exports = {
                             </pm:set_role>`));
 
                             // Step 3: Assign DATA_PROT role
-                            await postXml('ASSIGN DATA_PROT ROLE', wrapXml(generateMessageHeader(), `
+                            await postXml('ASSIGN DATA_OBFSC ROLE', wrapXml(generateMessageHeader(), `
                             <pm:set_role>
                                 <user_name>${userName}</user_name>
-                                <role>DATA_PROT</role>
+                                <role>DATA_OBFSC</role>
                                 <project_id>${ConfigSettings.projectId}</project_id>
                             </pm:set_role>`));
 
