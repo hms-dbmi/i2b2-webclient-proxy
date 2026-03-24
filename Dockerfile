@@ -1,4 +1,4 @@
-FROM node:16
+FROM node:25
 
 WORKDIR /usr/src/i2b2-proxy
 
