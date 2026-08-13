@@ -6,7 +6,7 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const dom = require('xmldom').DOMParser;
+const dom = require('@xmldom/xmldom').DOMParser;
 const xpath = require('xpath');
 
 // === Do not proxy these headers from the browser to the i2b2 server ===
@@ -221,7 +221,7 @@ serviceProxy.use(function(req, res, next) {
             // load the xml send in POST body and extract the redirect URL value
             try {
                 const doc_str = String(Buffer.concat(body));
-                const xml = new dom().parseFromString(doc_str);
+                const xml = new dom().parseFromString(doc_str, 'text/xml');
                 let domain = xpath.select("//security/domain/text()", xml)[0];
                 if (domain) domain = domain.toString();
                 let usrname = xpath.select("//security/username/text()", xml)[0];
