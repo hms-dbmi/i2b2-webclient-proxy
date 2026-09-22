@@ -41,5 +41,9 @@
   },
   "logging": {
     "transport": { "target": "pino-pretty" }
-  }
+  },
+  "fsOverlay": [
+    "hosting/i2b2-webclient-MassCPR",
+    "webclient"
+  ]
 }

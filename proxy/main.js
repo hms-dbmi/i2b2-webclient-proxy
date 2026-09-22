@@ -179,10 +179,18 @@ if (systemConfiguration.gitManager && systemConfiguration.gitManager.active) {
 }
 
 
-// serve the static files
+// serve the static files (based on overlays)
 // -------------------------------------------------------- //
-serviceProxy.use(express.static(hostingDir));
-logger.warn({"static_hosting": {dir: hostingDir}}, "Hosting web client found in " + hostingDir);
+if (systemConfiguration.fsOverlay && systemConfiguration.fsOverlay.length > 0) {
+    for (let overlayDir of systemConfiguration.fsOverlay) {
+        let overlayAbsoluteDir = path.join(baseDir, overlayDir);
+        serviceProxy.use(express.static(overlayAbsoluteDir));
+        logger.warn({"static_hosting": {dir: overlayAbsoluteDir}}, "Hosting web client found in " + overlayAbsoluteDir);
+    }
+} else {
+    serviceProxy.use(express.static(hostingDir));
+    logger.warn({"static_hosting": {dir: hostingDir}}, "Hosting web client found in " + hostingDir);
+}
 
 // proxy service
 // -------------------------------------------------------- //
